@@ -1,0 +1,10 @@
+dash
+dash-html-components
+dash-core-components
+dash-extensions
+dash-bootstrap-components
+Flask
+Flask-SQLAlchemy
+Flask-User
+email_validator
+numpy
