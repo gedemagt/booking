@@ -1,7 +1,5 @@
 
+CLOSE = 5
 
-MAX = 10
-CLOSE = 8
-
-ROWS = 4
+ROWS = 6
 COLUMNS = int(24 / ROWS)

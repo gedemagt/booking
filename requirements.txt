@@ -6,5 +6,6 @@ dash-bootstrap-components
 Flask
 Flask-SQLAlchemy
 Flask-User
+Flask-Admin
 email_validator
 numpy
