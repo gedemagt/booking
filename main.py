@@ -241,7 +241,7 @@ def callback(book, k, dd, ff, lol, data, date, nr_bookings):
             db.session.delete(db.session.query(Booking).filter_by(id=trig.id["bookingid"]).first())
             db.session.commit()
 
-    return create_heatmap(data["f"], data["t"]), data, msg, msg_color, msg != "", create_bookings()
+    return create_heatmap(d, data["f"], data["t"]), data, msg, msg_color, msg != "", create_bookings()
 
 
 def as_date(k):
@@ -342,9 +342,9 @@ def path(url):
 import plotly.graph_objects as go
 
 
-def create_heatmap(f, t):
+def create_heatmap(d, f, t):
 
-    week_start_day = datetime.today() - timedelta(days=datetime.today().weekday() % 7)
+    week_start_day = d - timedelta(days=d.weekday() % 7)
 
     all_bookings = np.zeros(24 * 4 * 7)
     my_bookings = np.zeros(24 * 4 * 7)
@@ -370,13 +370,19 @@ def create_heatmap(f, t):
     if f:
         start = (as_date(f) - datetime(week_start_day.year, week_start_day.month,
                                     week_start_day.day)).total_seconds() / 60 / 15
-        all_bookings[int(start)] = -5
+        all_bookings[int(start)] = -3.5
     if t:
         end = (as_date(t) - datetime(week_start_day.year, week_start_day.month,
                                     week_start_day.day)).total_seconds() / 60 / 15
         for _x in range(int(start)+1, int(end)):
 
-            all_bookings[_x] = -5
+            all_bookings[_x] = -3.5
+
+    if week_start_day < datetime.now() < week_start_day + timedelta(days=8):
+        start = (datetime.now() - datetime(week_start_day.year, week_start_day.month,
+                                    week_start_day.day)).total_seconds() / 60 / 15
+
+        all_bookings[:int(start)+1] = -4.5
 
     z = np.reshape(all_bookings, (7, 24*4)).transpose()
 
@@ -393,8 +399,10 @@ def create_heatmap(f, t):
             hoverongaps=False,
             zmin=-5,
             zmax=_max,
+            # showscale=False,
             colorscale=[
-                (0.0, "yellow"), (2 / l, "yellow"),
+                (0.0, "grey"), (1 / l, "grey"),
+                (1/l, "yellow"), (2 / l, "yellow"),
                 (2 / l, "green"), (5 / l, "green"),
                 (5 / l, "blue"), ((_close + 5) / l, "blue"),
                 ((_close + 5) / l, "orange"), (0.99, "orange"), (1.0, "red"),
