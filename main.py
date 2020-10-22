@@ -26,7 +26,7 @@ def is_admin():
 
 
 def create_from_to(f, t):
-    new_booking = np.zeros(24 * 4)
+    new_booking = np.zeros(24 * 4 * 7)
     for x in range(f, t):
         new_booking[x] += 1
     return new_booking
@@ -169,18 +169,18 @@ def create_popover():
 
 
 @app.callback(
-    [Output("main-table", "children"), Output("selection_store", "data"),
+    [Output("main-graph", "figure"), Output("selection_store", "data"),
      Output("msg", "children"), Output("msg", "color"), Output("msg", "is_open"), Output("my-bookings", "children")],
     [Input("book", "n_clicks"),
      Input(dict(type="time-tile", column=ALL, row=ALL), "n_clicks"),
-     Input('datepicker', 'date'), Input(dict(type="delete-booking", bookingid=ALL), "n_clicks")],
+     Input('datepicker', 'date'), Input(dict(type="delete-booking", bookingid=ALL), "n_clicks"), Input('main-graph', 'clickData')],
     [State("selection_store", "data"), State("datepicker", "date"), State("nr_bookings", "value")]
 )
-def callback(book, k, dd, ff, data, date, nr_bookings):
+def callback(book, k, dd, ff, lol, data, date, nr_bookings):
+
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
-
     d = datetime.strptime(date, "%Y-%m-%d")
 
     msg = ""
@@ -190,56 +190,65 @@ def callback(book, k, dd, ff, data, date, nr_bookings):
         data = {"f": None, "t": None}
     elif trig.id == "book":
 
-        bookings, my_bookings, my_daily_bookings = get_bookings(d)
+        # bookings, my_bookings, my_daily_bookings = get_bookings(d)
 
         if date is not None and data["f"] is not None and data["t"] is not None:
 
-            b_start = d + timedelta(minutes=15 * data["f"])
-            b_end = d + timedelta(minutes=15 * (data["t"] + 1))
+            b_start = datetime.strptime(data["f"], "%Y-%m-%dT%H:%M:%S")
+            b_end = datetime.strptime(data["t"], "%Y-%m-%dT%H:%M:%S")
 
-            new_booking = create_from_to(data["f"], data["t"] + 1) * int(nr_bookings)
 
-            total_nr_bookings = len([x.start for x in current_user.bookings if x.end >= datetime.now()])
-            # print(total_nr_bookings)
-
-            if np.any((bookings + new_booking) > get_chosen_gym().max_people):
-                msg = "Booking interval is overlapping with a full time slot"
-            elif not is_admin() and np.any(np.logical_and(new_booking, my_bookings)):
-                msg = "Booking interval is overlapping with a previous booking"
-            elif get_chosen_gym().max_booking_per_user_per_day is not None and \
-                    my_daily_bookings >= get_chosen_gym().max_booking_per_user_per_day:
-                msg = "You can not book any more today"
-            elif get_chosen_gym().max_booking_per_user is not None and \
-                    total_nr_bookings >= get_chosen_gym().max_booking_per_user:
-                msg = f"You can only have {get_chosen_gym().max_booking_per_user} active bookings"
-            else:
-                db.session.add(Booking(start=b_start, end=b_end, user=current_user,
+            # new_booking = create_from_to(data["f"], data["t"] + 1) * int(nr_bookings)
+            #
+            # total_nr_bookings = len([x.start for x in current_user.bookings if x.end >= datetime.now()])
+            #
+            # if np.any((bookings + new_booking) > get_chosen_gym().max_people):
+            #     msg = "Booking interval is overlapping with a full time slot"
+            # elif not is_admin() and np.any(np.logical_and(new_booking, my_bookings)):
+            #     msg = "Booking interval is overlapping with a previous booking"
+            # elif get_chosen_gym().max_booking_per_user_per_day is not None and \
+            #         my_daily_bookings >= get_chosen_gym().max_booking_per_user_per_day:
+            #     msg = "You can not book any more today"
+            # elif get_chosen_gym().max_booking_per_user is not None and \
+            #         total_nr_bookings >= get_chosen_gym().max_booking_per_user:
+            #     msg = f"You can only have {get_chosen_gym().max_booking_per_user} active bookings"
+            # else:
+            db.session.add(Booking(start=b_start, end=b_end, user=current_user,
                                        gym=current_user.gyms[0], number=int(nr_bookings)))
-                db.session.commit()
+            db.session.commit()
             data = {"f": None, "t": None}
         else:
             msg = "Invalid selection"
             msg_color = "danger"
+    elif trig.id == "main-graph":
+        picked_date = datetime.strptime(lol["points"][0]["x"].split(" ")[0] + " " + lol["points"][0]["y"], "%Y-%m-%d %H:%M")
+
+
+        if data["f"] is not None and data["t"] is not None \
+                or data["f"] is None:
+            data["f"] = picked_date
+            data["t"] = None
+        elif data["t"] is None:
+            # if get_chosen_gym().max_booking_length is not None and \
+            #         (new_click - data["f"]) > (get_chosen_gym().max_booking_length - 1):
+            #     data["t"] = data["f"] + (get_chosen_gym().max_booking_length - 1)
+            #     msg = f"You can maximally choose {get_chosen_gym().max_booking_length} quarters"
+            #     msg_color = "warning"
+            # else:
+            data["t"] = picked_date
     elif isinstance(trig.id, dict):
-        if trig.id["type"] == "time-tile":
-            new_click = trig.id["row"] * config.COLUMNS * 4 + trig.id["column"]
-            if data["f"] is not None and data["t"] is not None\
-                    or data["f"] is None:
-                data["f"] = new_click
-                data["t"] = None
-            elif data["t"] is None:
-                if get_chosen_gym().max_booking_length is not None and \
-                        (new_click - data["f"]) > (get_chosen_gym().max_booking_length - 1):
-                    data["t"] = data["f"] + (get_chosen_gym().max_booking_length - 1)
-                    msg = f"You can maximally choose {get_chosen_gym().max_booking_length} quarters"
-                    msg_color = "warning"
-                else:
-                    data["t"] = new_click
-        elif trig.id["type"] == "delete-booking":
+        if trig.id["type"] == "delete-booking":
             db.session.delete(db.session.query(Booking).filter_by(id=trig.id["bookingid"]).first())
             db.session.commit()
 
-    return create_rows(d, data["f"], data["t"]), data, msg, msg_color, msg != "", create_bookings()
+    return create_heatmap(data["f"], data["t"]), data, msg, msg_color, msg != "", create_bookings()
+
+
+def as_date(k):
+    if isinstance(k, datetime):
+        return k
+    else:
+        return datetime.strptime(k, "%Y-%m-%dT%H:%M:%S")
 
 
 def create_bookings():
@@ -330,6 +339,71 @@ def path(url):
     return layout, navbar_items, txt
 
 
+import plotly.graph_objects as go
+
+
+def create_heatmap(f, t):
+
+    week_start_day = datetime.today() - timedelta(days=datetime.today().weekday() % 7)
+
+    all_bookings = np.zeros(24 * 4 * 7)
+    my_bookings = np.zeros(24 * 4 * 7)
+    nr_bookings_today = 0
+    for b in Booking.query.filter(Booking.start >= week_start_day).filter(Booking.end <= week_start_day + timedelta(days=8)).all():
+        start = (b.start - datetime(week_start_day.year, week_start_day.month, week_start_day.day)).total_seconds() / 60 / 15
+        end = (b.end - datetime(week_start_day.year, week_start_day.month, week_start_day.day)).total_seconds() / 60 / 15
+
+        start_end_array = create_from_to(int(start), int(end)) * b.number
+
+        all_bookings += start_end_array
+
+        if current_user and b.user.id == current_user.id:
+            my_bookings += start_end_array
+            nr_bookings_today += 1
+
+    x = [(week_start_day.date() + timedelta(days=x)) for x in range(7)]
+    start = datetime(1, 1, 1)
+    y = [(start + timedelta(minutes=15*k)).strftime("%H:%M") for k in range(24*4)]
+
+    all_bookings[my_bookings > 0] = -3
+
+    if f:
+        start = (as_date(f) - datetime(week_start_day.year, week_start_day.month,
+                                    week_start_day.day)).total_seconds() / 60 / 15
+        all_bookings[int(start)] = -5
+    if t:
+        end = (as_date(t) - datetime(week_start_day.year, week_start_day.month,
+                                    week_start_day.day)).total_seconds() / 60 / 15
+        for _x in range(int(start)+1, int(end)):
+
+            all_bookings[_x] = -5
+
+    z = np.reshape(all_bookings, (7, 24*4)).transpose()
+
+    _max = get_chosen_gym().max_people
+    _close = _max - config.CLOSE
+    l = _max + 5
+
+    fig = go.Figure(
+        layout=go.Layout(margin=dict(t=0)),
+        data=go.Heatmap(
+            z=z,
+            x=x,
+            y=y,
+            hoverongaps=False,
+            zmin=-5,
+            zmax=_max,
+            colorscale=[
+                (0.0, "yellow"), (2 / l, "yellow"),
+                (2 / l, "green"), (5 / l, "green"),
+                (5 / l, "blue"), ((_close + 5) / l, "blue"),
+                ((_close + 5) / l, "orange"), (0.99, "orange"), (1.0, "red"),
+            ]
+        )
+    )
+    return fig
+
+
 def create_main_layout():
     return dbc.Row([
         dbc.Col([
@@ -354,9 +428,10 @@ def create_main_layout():
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            html.Table(id="main-table",
-                                       style={"border-collapse": "collapse",
-                                              "width": "100%"})
+                            dcc.Graph(id="main-graph", style={"height": "70vh", "width": "100%"})
+                            # html.Table(id="main-table",
+                            #            style={"border-collapse": "collapse",
+                            #                   "width": "100%"})
                         ], className="my-3"),
                     ], width=12),
                 ], justify="between"),
