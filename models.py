@@ -3,6 +3,7 @@ from datetime import datetime
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_user import UserMixin
+from wtforms import ValidationError
 
 from app import fapp
 from custom import CustomUserManager

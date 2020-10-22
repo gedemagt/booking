@@ -1,0 +1,16 @@
+version: "3"
+
+services:
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: booking-webapp
+    volumes:
+      - ./res:/res
+    environment:
+      DB_PATH: "/res/db.db"
+      SECRET_KEY: "${SECRET_KEY:-VERY SECRET SECRET!}"
+      SMTP_PASS: "${SMTP_PASS:-}"
+    ports:
+      - "8050:8050"

@@ -21,6 +21,10 @@ def get_chosen_gym():
     return current_user.gyms[0]
 
 
+def is_admin():
+    return current_user in get_chosen_gym().admins or current_user.role == "ADMIN"
+
+
 def create_from_to(f, t):
     new_booking = np.zeros(24 * 4)
     for x in range(f, t):
@@ -77,12 +81,7 @@ def create_rows(d, f, t):
             return "red"
 
     def get_text(row, column):
-        if is_yours(row, column):
-            return ""
-        elif is_close(row, column):
-            return str(int(get_chosen_gym().max_people - current[row * config.COLUMNS * 4 + column]))
-        else:
-            return ""
+        return str(int(get_chosen_gym().max_people - current[row * config.COLUMNS * 4 + column]))
 
     rows = []
     dt = datetime(1, 1, 1)
@@ -90,26 +89,28 @@ def create_rows(d, f, t):
         rows.append(
             html.Tr([
                 html.Td(
-                    html.Button(
-                        get_text(x, k),
-                        style={"width": "100%", "height": "45px", "border": "none",
-                               "background-color": get_color(x, k), "color": "white",
-                               "font-weight": "bold"},
-                        id=dict(type="time-tile", column=k, row=x)
-                    ),
-                    style={"text-align": "center"}
+                    html.Div([
+                        html.Button(
+                            get_text(x, k),
+                            style={"background-color": get_color(x, k)},
+                            id=dict(type="time-tile", column=k, row=x),
+                            className="table-button"
+                        ),
+                    ], className="table-cell")
                 )
                 for k in range(config.COLUMNS * 4)
             ])
         )
+
         rows.append(
             html.Tr([
                 html.Td(
-                    (dt + timedelta(minutes=(x * config.COLUMNS * 4 + k) * 15)).strftime("%H:%M")
-                    if (x * config.COLUMNS * 4 + k) % 4 == 0 else "",
-                    colSpan=2
+                    html.Div([
+                        (dt + timedelta(minutes=(x * config.COLUMNS * 4 + k * 4) * 15)).strftime("%H")
+                    ], className="hour-cell")
+                    , colSpan=4
                 )
-                for k in range(config.COLUMNS * 2)
+                for k in range(config.COLUMNS)
             ])
         )
 
@@ -118,10 +119,7 @@ def create_rows(d, f, t):
 
 def create_popover():
     return html.Div([
-        html.Button("?",
-                    id="popover-target",
-                    style={"width": "38px", "height": "38px", "background-color": "white",
-                           "border": "none", "text-align": "center"}),
+        dbc.Button("Help", id="popover-target", color="primary"),
         dbc.Popover(
             [
                 dbc.PopoverBody(
@@ -163,7 +161,7 @@ def create_popover():
             id="popover",
             is_open=False,
             target="popover-target",
-            placement="left"
+            placement="below"
         ),
     ])
 
@@ -174,9 +172,9 @@ def create_popover():
     [Input("book", "n_clicks"),
      Input(dict(type="time-tile", column=ALL, row=ALL), "n_clicks"),
      Input('datepicker', 'date'), Input(dict(type="delete-booking", bookingid=ALL), "n_clicks")],
-    [State("selection_store", "data"), State("datepicker", "date")]
+    [State("selection_store", "data"), State("datepicker", "date"), State("nr_bookings", "value")]
 )
-def callback(book, k, dd, ff, data, date):
+def callback(book, k, dd, ff, data, date, nr_bookings):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
@@ -197,14 +195,15 @@ def callback(book, k, dd, ff, data, date):
             b_start = d + timedelta(minutes=15 * data["f"])
             b_end = d + timedelta(minutes=15 * (data["t"] + 1))
 
-            new_booking = create_from_to(data["f"], data["t"] + 1)
+            new_booking = create_from_to(data["f"], data["t"] + 1) * int(nr_bookings)
 
             if np.any((bookings + new_booking) > get_chosen_gym().max_people):
                 msg = "Booking interval is overlapping with a full time slot"
-            elif np.any((new_booking + my_bookings) > 1):
+            elif not is_admin() and np.any(np.logical_and(new_booking, my_bookings)):
                 msg = "Booking interval is overlapping with a previous booking"
             else:
-                db.session.add(Booking(start=b_start, end=b_end, user=current_user, gym=current_user.gyms[0]))
+                db.session.add(Booking(start=b_start, end=b_end, user=current_user,
+                                       gym=current_user.gyms[0], number=int(nr_bookings)))
                 db.session.commit()
             data = {"f": None, "t": None}
         else:
@@ -242,7 +241,8 @@ def create_bookings():
     for d in sorted(k.keys()):
         result.append(
             html.Tr([
-                html.Td(d.strftime("%d %b %Y"), style={"background-color": "lightgrey"}, colSpan=4)
+                html.Td(d.strftime("%d %b %Y"), style={"background-color": "lightgrey"}, colSpan=3),
+                html.Td("#", style={"background-color": "lightgrey"}, colSpan=2),
             ])
         )
         for b in k[d]:
@@ -251,6 +251,7 @@ def create_bookings():
                     html.Td(b.start.strftime("%H:%M"), style={"text-align": "left"}),
                     html.Td("-", style={"text-align": "left"}),
                     html.Td(b.end.strftime("%H:%M"), style={"text-align": "left"}),
+                    html.Td(b.number if b.number > 1 else "", style={"text-align": "left"}),
                     html.Td(dbc.Button("Delete", id=dict(type="delete-booking", bookingid=b.id), color="danger"))
                 ]),
             )
@@ -269,7 +270,7 @@ def toggle_popover(n, is_open):
 
 
 @app.callback(
-    [Output("redirect", "children")],
+    [Output("redirect", "children"), Output("gym-err", "children"), Output("gym-err", "is_open")],
     [Input("add_gym", "n_clicks")],
     [State("gym_code", "value")]
 )
@@ -280,36 +281,41 @@ def on_new_gym(n, gym_code):
         if g:
             current_user.gyms.append(g)
             db.session.commit()
-            return dcc.Location(pathname="/", id="someid_doesnt_matter"),
+            return dcc.Location(pathname="/", id="someid_doesnt_matter"), "", False
 
-    raise PreventUpdate
+    return "", "Gym not found", n is not None
 
 
 @app.callback(
-    [Output("layout", "children"), Output("navbar", "children")],
+    [Output("layout", "children"), Output("navbar", "children"), Output("navbar", "brand")],
     [Input("location", "pathname")]
 )
 def path(url):
 
     navbar_items = [
+        dbc.NavItem(create_popover()),
         dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
     ]
 
     if len(current_user.gyms) == 0:
-        return dbc.Container([
+        layout = dbc.Container([
             dbc.Row([
                 dbc.Col([
-                    html.H3("Please enter gym code"),
-                    dbc.InputGroup([dbc.Input(id="gym_code")]),
-                    dbc.Button("OK", id="add_gym", color="primary"),
+                    html.H3("Please enter gym code", className="my-3"),
+                    dbc.InputGroup([dbc.Input(id="gym_code")], className="mb-2"),
+                    dbc.Button("OK", id="add_gym", color="primary", className="mb-2"),
+                    dbc.Alert(id="gym-err", is_open=False, color="danger")
                 ], width=4)
             ], justify="around"),
             dbc.Row([
 
             ])
-        ], fluid=True), navbar_items
-
-    return create_main_layout(), navbar_items
+        ], fluid=True)
+        txt = f"{current_user.username}"
+    else:
+        layout = create_main_layout()
+        txt = f"{current_user.username} @ {get_chosen_gym().name}"
+    return layout, navbar_items, txt
 
 
 def create_main_layout():
@@ -340,17 +346,13 @@ def create_main_layout():
                                        style={"border-collapse": "collapse",
                                               "width": "100%"})
                         ], className="my-3"),
-                    ], width=10),
-                    dbc.Col([
-                        html.Div(style={"height": "10px"}),
-                        create_popover(),
-                        html.Div(style={"height": "315px"}),
-                        dbc.Button("Book", id="book", color="success")
-                    ], width=2)
+                    ], width=12),
                 ], justify="between"),
                 dbc.Row([
                     dbc.Alert(id="msg", is_open=False),
-
+                    html.Div(dbc.Input(value=1, id="nr_bookings"),
+                             hidden=not is_admin()),
+                    dbc.Button("Book", id="book", color="success")
                 ], justify="end")
             ], fluid=True)
         ], width=7),
@@ -365,7 +367,7 @@ app.layout = html.Div([
     dcc.Store(id="selection_store", data={"f": None, "t": None}),
     dcc.Store(id="bookings_store", data={}),
     dcc.Location(id="location"),
-    html.Div(id="redirect", style={"hidden": True}),
+    html.Div(id="redirect"),
     dbc.NavbarSimple(
         children=[],
         brand="Booking",

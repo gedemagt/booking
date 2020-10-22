@@ -13,7 +13,7 @@ fapp = Flask(__name__)
 fapp.secret_key = os.getenv('SECRET_KEY', 'This is an INSECURE secret!! DO NOT use this in production!!')
 
 
-fapp.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_PATH', 'sqlite:///basic_app.sqlite')
+fapp.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///" + os.getenv('DB_PATH', 'basic_app.sqlite')
 fapp.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 fapp.config['MAIL_SERVER'] = 'in-v3.mailjet.com'
 fapp.config['MAIL_PORT'] = 587
