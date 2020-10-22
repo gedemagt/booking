@@ -35,6 +35,7 @@ def create_from_to(f, t):
 def get_bookings(d: date):
     all_bookings = np.zeros(24 * 4)
     my_bookings = np.zeros(24 * 4)
+    nr_bookings_today = 0
     for b in Booking.query.filter(Booking.start >= d).filter(Booking.end <= d + timedelta(days=1)).all():
         start = (b.start - datetime(d.year, d.month, d.day)).seconds / 60 / 15
         end = (b.end - datetime(d.year, d.month, d.day)).seconds / 60 / 15
@@ -45,11 +46,12 @@ def get_bookings(d: date):
 
         if current_user and b.user.id == current_user.id:
             my_bookings += start_end_array
-    return np.array(all_bookings), np.array(my_bookings)
+            nr_bookings_today += 1
+    return np.array(all_bookings), np.array(my_bookings), nr_bookings_today
 
 
 def create_rows(d, f, t):
-    current, my_bookings = get_bookings(d)
+    current, my_bookings, _ = get_bookings(d)
 
     def selected(row, column):
         if f is None:
@@ -188,7 +190,7 @@ def callback(book, k, dd, ff, data, date, nr_bookings):
         data = {"f": None, "t": None}
     elif trig.id == "book":
 
-        bookings, my_bookings = get_bookings(d)
+        bookings, my_bookings, my_daily_bookings = get_bookings(d)
 
         if date is not None and data["f"] is not None and data["t"] is not None:
 
@@ -197,10 +199,19 @@ def callback(book, k, dd, ff, data, date, nr_bookings):
 
             new_booking = create_from_to(data["f"], data["t"] + 1) * int(nr_bookings)
 
+            total_nr_bookings = len([x.start for x in current_user.bookings if x.end >= datetime.now()])
+            # print(total_nr_bookings)
+
             if np.any((bookings + new_booking) > get_chosen_gym().max_people):
                 msg = "Booking interval is overlapping with a full time slot"
             elif not is_admin() and np.any(np.logical_and(new_booking, my_bookings)):
                 msg = "Booking interval is overlapping with a previous booking"
+            elif get_chosen_gym().max_booking_per_user_per_day is not None and \
+                    my_daily_bookings >= get_chosen_gym().max_booking_per_user_per_day:
+                msg = "You can not book any more today"
+            elif get_chosen_gym().max_booking_per_user is not None and \
+                    total_nr_bookings >= get_chosen_gym().max_booking_per_user:
+                msg = f"You can only have {get_chosen_gym().max_booking_per_user} active bookings"
             else:
                 db.session.add(Booking(start=b_start, end=b_end, user=current_user,
                                        gym=current_user.gyms[0], number=int(nr_bookings)))
@@ -235,7 +246,8 @@ def create_bookings():
     k = defaultdict(list)
 
     for x in current_user.bookings:
-        k[x.start.date()].append(x)
+        if x.end >= datetime.now():
+            k[x.start.date()].append(x)
 
     result = []
     for d in sorted(k.keys()):
@@ -322,7 +334,7 @@ def create_main_layout():
     return dbc.Row([
         dbc.Col([
 
-        ], width=2),
+        ], xs=0, sm=2),
         dbc.Col([
             dbc.Container([
                 dbc.Row([
@@ -332,7 +344,7 @@ def create_main_layout():
                             id="datepicker",
                             date=datetime.now().date(),
                             min_date_allowed=datetime.now().date(),
-                            max_date_allowed=datetime.now().date() + timedelta(days=14),
+                            max_date_allowed=datetime.now().date() + timedelta(days=14) if not is_admin() else None,
                             className="m-1",
                             display_format='DD MMM YYYY'
                         ),
@@ -355,11 +367,11 @@ def create_main_layout():
                     dbc.Button("Book", id="book", color="success")
                 ], justify="end")
             ], fluid=True)
-        ], width=7),
+        ], width=12, xs=7),
         dbc.Col([
             dbc.Row([dbc.Label("My bookings", className="m-3")]),
             dbc.Row(id="my-bookings")
-        ], width=3)
+        ], width=12, xs=3)
     ])
 
 

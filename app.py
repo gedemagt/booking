@@ -32,7 +32,7 @@ fapp.config['USER_EMAIL_SENDER_EMAIL'] = 'noreply@booking.com'
 fapp.config['USER_ENABLE_CONFIRM_EMAIL'] = False
 fapp.config['USER_ALLOW_LOGIN_WITHOUT_CONFIRMED_EMAIL'] = True
 
-app = dash.Dash(server=fapp, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, server=fapp, external_stylesheets=[dbc.themes.BOOTSTRAP], title="Booking", update_title=None)
 app.suppress_callback_exceptions = True
 
 

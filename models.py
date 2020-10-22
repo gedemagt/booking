@@ -54,6 +54,8 @@ class Gym(db.Model):
     code = db.Column(db.String, nullable=False, unique=True)
     max_people = db.Column(db.Integer, nullable=False, default=10)
     max_booking_length = db.Column(db.Integer, nullable=True)
+    max_booking_per_user = db.Column(db.Integer, nullable=True)
+    max_booking_per_user_per_day = db.Column(db.Integer, nullable=True)
 
     admins = db.relationship('User', secondary=gym_admins, lazy='subquery',
                              backref=db.backref('admin_gyms', lazy=True))
