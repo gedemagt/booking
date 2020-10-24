@@ -1,15 +1,23 @@
 from datetime import date, datetime, timedelta
 
+import humanize
 import numpy as np
 from flask_login import current_user
 
 from models import Booking
-from time_utils import start_of_day
+from time_utils import start_of_day, start_of_week
 from utils import get_chosen_gym
 
 
 def create_from_to(f, t):
     new_booking = np.zeros(24 * 4 * 7)
+    for x in range(f, t):
+        new_booking[x] += 1
+    return new_booking
+
+
+def create_daily_from_to(f, t):
+    new_booking = np.zeros(24 * 4)
     for x in range(f, t):
         new_booking[x] += 1
     return new_booking
@@ -22,8 +30,12 @@ def validate_booking(start, end, number):
     if start.date() != end.date():
         raise AssertionError("Start end stop must be on same day")
 
+    if end <= start:
+        raise AssertionError("Start must come before end")
+
     if gym.max_booking_length and ((end - start).total_seconds() / 60 / 15) > gym.max_booking_length:
-        raise AssertionError(f"Max booking length is {gym.max_booking_length} quarters")
+        maxlen = humanize.precisedelta(timedelta(seconds=gym.max_booking_length * 15 * 60))
+        raise AssertionError(f"Max booking length is {maxlen}")
 
     active_bookings = len([x for x in current_user.bookings if x.end >= datetime.now()])
 
@@ -45,34 +57,54 @@ def validate_booking(start, end, number):
         raise AssertionError(
             f"Selection is overlapping with another booking")
 
-    all_bookings = Booking.query\
-        .filter_by(user_id=current_user.id)\
-        .filter(Booking.start >= start_of_day(start))\
-        .filter(Booking.end <= (start_of_day(start) + timedelta(days=1))).all()
+    all_bookings, my_bookings = create_daily_booking_map(start)
+    day = start_of_day(start)
+    start = (start - day).total_seconds() / 60 / 15
+    end = (end - day).total_seconds() / 60 / 15
+
+    start_end_array = create_daily_from_to(int(start), int(end)) * number
+    if gym.max_people and np.any((all_bookings + start_end_array) > gym.max_people):
+        raise AssertionError(f"Booking exceeds capacity")
 
 
-    # Todo: Max number
+def create_daily_booking_map(d):
+    day = start_of_day(d)
 
-    _max = number
-    for b in all_bookings:
-        if (start <= b.start < end) or (start < b.end <= end) or (b.start <= start and b.end >= end):
-            _max += b.number
-    print(_max)
+    all_bookings = np.zeros(24 * 4)
+    my_bookings = np.zeros(24 * 4)
+
+    for b in Booking.query.filter(Booking.start >= day).filter(Booking.end <= day + timedelta(days=1)).all():
+        start = (b.start - day).total_seconds() / 60 / 15
+        end = (b.end - day).total_seconds() / 60 / 15
+
+        start_end_array = create_daily_from_to(int(start), int(end)) * b.number
+
+        all_bookings += start_end_array
+
+        if current_user and b.user.id == current_user.id:
+            my_bookings += start_end_array
+
+    return all_bookings, my_bookings
 
 
-# def get_bookings(d: date):
-#     all_bookings = np.zeros(24 * 4)
-#     my_bookings = np.zeros(24 * 4)
-#     nr_bookings_today = 0
-#     for b in Booking.query.filter(Booking.start >= d).filter(Booking.end <= d + timedelta(days=1)).all():
-#         start = (b.start - datetime(d.year, d.month, d.day)).seconds / 60 / 15
-#         end = (b.end - datetime(d.year, d.month, d.day)).seconds / 60 / 15
-#
-#         start_end_array = create_from_to(int(start), int(end)) * b.number
-#
-#         all_bookings += start_end_array
-#
-#         if current_user and b.user.id == current_user.id:
-#             my_bookings += start_end_array
-#             nr_bookings_today += 1
-#     return np.array(all_bookings), np.array(my_bookings), nr_bookings_today
+def create_weekly_booking_map(d):
+    week_start_day = start_of_week(d)
+
+    all_bookings = np.zeros(24 * 4 * 7)
+    my_bookings = np.zeros(24 * 4 * 7)
+
+    for b in Booking.query.filter(Booking.start >= week_start_day).filter(
+            Booking.end <= week_start_day + timedelta(days=8)).all():
+        start = (b.start - datetime(week_start_day.year, week_start_day.month,
+                                    week_start_day.day)).total_seconds() / 60 / 15
+        end = (b.end - datetime(week_start_day.year, week_start_day.month,
+                                week_start_day.day)).total_seconds() / 60 / 15
+
+        start_end_array = create_from_to(int(start), int(end)) * b.number
+
+        all_bookings += start_end_array
+
+        if current_user and b.user.id == current_user.id:
+            my_bookings += start_end_array
+
+    return all_bookings, my_bookings
