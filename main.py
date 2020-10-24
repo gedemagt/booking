@@ -9,6 +9,7 @@ from dash_extensions.enrich import Output, Input, State, Trigger
 from dash.exceptions import PreventUpdate
 from dash_extensions.snippets import get_triggered
 from flask_login import current_user
+import plotly.graph_objects as go
 
 import numpy as np
 
@@ -58,7 +59,6 @@ def on_delete():
         try:
             db.session.delete(db.session.query(Booking).filter_by(id=trig.id["bookingid"]).first())
             db.session.commit()
-            print("HEllo")
             return {"deleted": trig.id["bookingid"]}
         except Exception as e:
             import traceback
@@ -81,7 +81,7 @@ def on_booking(data, nr_bookings):
         b_end = datetime.strptime(data["t"], "%Y-%m-%dT%H:%M:%S")
 
         try:
-            # validate_booking(b_start, b_end, int(nr_bookings))
+            validate_booking(b_start, b_end, int(nr_bookings))
             db.session.add(Booking(start=b_start, end=b_end, user=current_user,
                                    gym=current_user.gyms[0], number=int(nr_bookings)))
             db.session.commit()
@@ -151,11 +151,11 @@ def create_bookings():
                     html.Td(b.start.strftime("%H:%M"), style={"text-align": "left"}),
                     html.Td("-", style={"text-align": "left"}),
                     html.Td(b.end.strftime("%H:%M"), style={"text-align": "left"}),
-                    html.Td(b.number if b.number > 1 else "", style={"text-align": "left"}),
+                    html.Td(b.number, style={"text-align": "left"}),
                     html.Td(dbc.Button("Delete", id=dict(type="delete-booking", bookingid=b.id), color="danger"))
                 ]),
             )
-    return dbc.Table(result, style={"width": "150px"})
+    return dbc.Table(result, style={"width": "100%"})
 
 
 @app.callback(
@@ -187,9 +187,9 @@ def on_new_gym(n, gym_code):
 
 @app.callback(
     [Output("layout", "children"), Output("navbar", "children"), Output("navbar", "brand")],
-    [Input("location", "pathname")]
+    [Trigger("location", "pathname")]
 )
-def path(url):
+def path():
     navbar_items = [
         dbc.NavItem(create_popover()),
         dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
@@ -214,9 +214,6 @@ def path(url):
         layout = create_main_layout()
         txt = f"{current_user.username} @ {get_chosen_gym().name}"
     return layout, navbar_items, txt
-
-
-import plotly.graph_objects as go
 
 
 def create_heatmap(d, f, t):
@@ -246,14 +243,15 @@ def create_heatmap(d, f, t):
 
     all_bookings[my_bookings > 0] = -3
 
+    start_idx = 0
     if f:
-        start = (as_date(f) - datetime(week_start_day.year, week_start_day.month,
+        start_idx = (as_date(f) - datetime(week_start_day.year, week_start_day.month,
                                        week_start_day.day)).total_seconds() / 60 / 15
-        all_bookings[int(start)] = -3.5
+        all_bookings[int(start_idx)] = -3.5
     if t:
-        end = (as_date(t) - datetime(week_start_day.year, week_start_day.month,
+        end_idx = (as_date(t) - datetime(week_start_day.year, week_start_day.month,
                                      week_start_day.day)).total_seconds() / 60 / 15
-        for _x in range(int(start) + 1, int(end)):
+        for _x in range(int(start_idx) + 1, int(end_idx)):
             all_bookings[_x] = -3.5
 
     if week_start_day < datetime.now() < week_start_day + timedelta(days=8):
@@ -338,10 +336,16 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
         data["source"] = "graph"
     else:
         if trig.id == "from-drop-down":
-            data["t"] = None
-            data["f"] = date_picker_date + "T" + OPTIONS[prev_from]["label"] + ":00"
+            if prev_from is None:
+                data["f"] = None
+                data["t"] = None
+            else:
+                data["f"] = date_picker_date + "T" + OPTIONS[prev_from]["label"] + ":00"
         elif trig.id == "to-drop-down":
-            data["t"] = date_picker_date + "T" + OPTIONS[prev_to]["label"] + ":00"
+            if prev_to is None:
+                data["t"] = None
+            else:
+                data["t"] = date_picker_date + "T" + OPTIONS[prev_to]["label"] + ":00"
         elif trig.id == "date-picker":
             if "t" in data:
                 data["t"] = str(date_picker_date) + "T" + data["t"].split("T")[-1]
@@ -355,11 +359,14 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
     [Output("from-drop-down", "value"), Output("to-drop-down", "options"),
      Output("to-drop-down", "value"), Output("date-picker", "date")],
     [Input("selection_store", "data")],
+    [State("from-drop-down", "value"), State("to-drop-down", "options"),
+     State("to-drop-down", "value"), State("date-picker", "date")]
 )
-def update_inputs(data):
+def update_inputs(data, prev_from, prev_options, prev_to, prev_date):
     from_value = None
     to_value = None
     date = start_of_day(datetime.now())
+
     if data.get("source", "") == "graph":
         if data["f"] is not None:
             d = parse(data["f"])
@@ -370,6 +377,10 @@ def update_inputs(data):
             to_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
 
         return from_value, OPTIONS[from_value + 1:] if from_value else OPTIONS[1:], to_value, date.date()
+    elif data.get("source", "") == "input":
+        return prev_from if data["f"] is not None else None, \
+               prev_options , \
+               prev_to if data["t"] is not None else None, prev_date
     else:
         raise PreventUpdate
 
@@ -504,4 +515,4 @@ app.layout = html.Div([
 if __name__ == '__main__':
     init_flask_admin()
     app.suppress_callback_exceptions = True
-    app.run_server(debug=True, dev_tools_ui=True)
+    app.run_server(debug=False, dev_tools_ui=False)

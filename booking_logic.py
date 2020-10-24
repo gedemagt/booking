@@ -31,9 +31,10 @@ def validate_booking(start, end, number):
             active_bookings >= gym.max_booking_per_user:
         raise AssertionError(f"You can only have {gym.max_booking_per_user} active bookings")
 
-    total_seconds = sum((x.end - x.start).total_seconds() for x in current_user.bookings if x.start.date() == start.date())
-    if ((total_seconds + (end - start).total_seconds()) / 60 / 15) > gym.max_time_per_user_per_day:
-        raise AssertionError(f"You can not book more than {gym.max_time_per_user_per_day} quarters per day")
+    if gym.max_time_per_user_per_day is not None:
+        total_seconds = sum((x.end - x.start).total_seconds() for x in current_user.bookings if x.start.date() == start.date())
+        if ((total_seconds + (end - start).total_seconds()) / 60 / 15) > gym.max_time_per_user_per_day:
+            raise AssertionError(f"You can not book more than {gym.max_time_per_user_per_day} quarters per day")
 
     overlapping = [x for x in current_user.bookings if
                    (start <= x.start < end) or
@@ -48,6 +49,9 @@ def validate_booking(start, end, number):
         .filter_by(user_id=current_user.id)\
         .filter(Booking.start >= start_of_day(start))\
         .filter(Booking.end <= (start_of_day(start) + timedelta(days=1))).all()
+
+
+    # Todo: Max number
 
     _max = number
     for b in all_bookings:
