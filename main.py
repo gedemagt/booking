@@ -4,7 +4,8 @@ from datetime import datetime, timedelta, date
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, ALL, Output, State
+from dash.dependencies import ALL
+from dash_extensions.enrich import Output, Input, State, Trigger
 from dash.exceptions import PreventUpdate
 from dash_extensions.snippets import get_triggered
 from flask_login import current_user
@@ -14,174 +15,40 @@ import numpy as np
 import config
 from admin import init_flask_admin
 from app import app
+from booking_logic import create_from_to, validate_booking
+from components import create_popover
 from models import Booking, db, Gym
+from time_utils import start_of_week, start_of_day
+from utils import get_chosen_gym, is_admin
 
 
-def get_chosen_gym():
-    return current_user.gyms[0]
-
-
-def is_admin():
-    return current_user in get_chosen_gym().admins or current_user.role == "ADMIN"
-
-
-def create_from_to(f, t):
-    new_booking = np.zeros(24 * 4 * 7)
+def create_from_to_day(f, t, n=1):
+    new_booking = np.zeros(24 * 4)
     for x in range(f, t):
-        new_booking[x] += 1
+        new_booking[x] += n
     return new_booking
 
+def parse(s):
+    return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")
 
-def get_bookings(d: date):
-    all_bookings = np.zeros(24 * 4)
-    my_bookings = np.zeros(24 * 4)
-    nr_bookings_today = 0
-    for b in Booking.query.filter(Booking.start >= d).filter(Booking.end <= d + timedelta(days=1)).all():
-        start = (b.start - datetime(d.year, d.month, d.day)).seconds / 60 / 15
-        end = (b.end - datetime(d.year, d.month, d.day)).seconds / 60 / 15
-
-        start_end_array = create_from_to(int(start), int(end)) * b.number
-
-        all_bookings += start_end_array
-
-        if current_user and b.user.id == current_user.id:
-            my_bookings += start_end_array
-            nr_bookings_today += 1
-    return np.array(all_bookings), np.array(my_bookings), nr_bookings_today
-
-
-def create_rows(d, f, t):
-    current, my_bookings, _ = get_bookings(d)
-
-    def selected(row, column):
-        if f is None:
-            return False
-        elif t is None:
-            return f == row * config.COLUMNS * 4 + column
-        else:
-            return f <= row * config.COLUMNS * 4 + column <= t
-
-    def is_available(row, column):
-        return current[row * config.COLUMNS * 4 + column] < get_chosen_gym().max_people
-
-    def is_close(row, column):
-        return (get_chosen_gym().max_people - config.CLOSE) <= current[row * config.COLUMNS * 4 + column] < get_chosen_gym().max_people
-
-    def is_yours(row, column):
-        return my_bookings[row * config.COLUMNS * 4 + column] > 0
-
-    def get_color(row, column):
-        if selected(row, column):
-            return "grey"
-        elif is_yours(row, column):
-            return "green"
-        elif is_close(row, column):
-            return "orange"
-        elif is_available(row, column):
-            return "blue"
-        else:
-            return "red"
-
-    def get_text(row, column):
-        return str(int(get_chosen_gym().max_people - current[row * config.COLUMNS * 4 + column]))
-
-    rows = []
-    dt = datetime(1, 1, 1)
-    for x in range(config.ROWS):
-        rows.append(
-            html.Tr([
-                html.Td(
-                    html.Div([
-                        html.Button(
-                            get_text(x, k),
-                            style={"background-color": get_color(x, k)},
-                            id=dict(type="time-tile", column=k, row=x),
-                            className="table-button"
-                        ),
-                    ], className="table-cell")
-                )
-                for k in range(config.COLUMNS * 4)
-            ])
-        )
-
-        rows.append(
-            html.Tr([
-                html.Td(
-                    html.Div([
-                        (dt + timedelta(minutes=(x * config.COLUMNS * 4 + k * 4) * 15)).strftime("%H")
-                    ], className="hour-cell")
-                    , colSpan=4
-                )
-                for k in range(config.COLUMNS)
-            ])
-        )
-
-    return rows
-
-
-def create_popover():
-    return html.Div([
-        dbc.Button("Help", id="popover-target", color="primary"),
-        dbc.Popover(
-            [
-                dbc.PopoverBody(
-                    html.Table([
-                        html.Tr([
-                            html.Td([
-                                "Available"
-                            ], className="p-1",
-                                style={"background-color": "blue", "color": "white", "font-weight": "bold"}),
-                        ]),
-                        html.Tr([
-                            html.Td([
-                                "Booked"
-                            ], className="p-1",
-                                style={"background-color": "green", "color": "white", "font-weight": "bold"}),
-
-                        ]),
-                        html.Tr([
-                            html.Td([
-                                "Almost full"
-                            ], className="p-1",
-                                style={"background-color": "orange", "color": "white", "font-weight": "bold"}),
-                        ]),
-                        html.Tr([
-                            html.Td([
-                                "Full"
-                            ], className="p-1",
-                                style={"background-color": "Red", "color": "white", "font-weight": "bold"}),
-                        ]),
-                        html.Tr([
-                            html.Td([
-                                "Selected"
-                            ], className="p-1",
-                                style={"background-color": "grey", "color": "white", "font-weight": "bold"}),
-                        ])
-                    ])
-                ),
-            ],
-            id="popover",
-            is_open=False,
-            target="popover-target",
-            placement="below"
-        ),
-    ])
-
+def parse_heatmap_click(data):
+    return datetime.strptime(data["points"][0]["x"].split(" ")[0] + " " + data["points"][0]["y"], "%Y-%m-%d %H:%M")
 
 @app.callback(
     [Output("main-graph", "figure"), Output("selection_store", "data"),
-     Output("msg", "children"), Output("msg", "color"), Output("msg", "is_open"), Output("my-bookings", "children")],
-    [Input("book", "n_clicks"),
-     Input(dict(type="time-tile", column=ALL, row=ALL), "n_clicks"),
-     Input('datepicker', 'date'), Input(dict(type="delete-booking", bookingid=ALL), "n_clicks"), Input('main-graph', 'clickData')],
-    [State("selection_store", "data"), State("datepicker", "date"), State("nr_bookings", "value")]
+     Output("msg", "children"), Output("msg", "color"), Output("msg", "is_open"),
+     Output("my-bookings", "children"), Output("week", "children")],
+    [Trigger("book", "n_clicks"), Trigger(dict(type="delete-booking", bookingid=ALL), "n_clicks"),
+     Input('main-graph', 'clickData'), Trigger("prev_week", "n_clicks"), Trigger("next_week", "n_clicks")],
+    [State("selection_store", "data"), State("nr_bookings", "value")]
 )
-def callback(book, k, dd, ff, lol, data, date, nr_bookings):
+def callback(lol, data, nr_bookings):
 
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
-    d = datetime.strptime(date, "%Y-%m-%d")
+
+    d = parse(data["d"])
 
     msg = ""
     msg_color = "danger"
@@ -190,58 +57,51 @@ def callback(book, k, dd, ff, lol, data, date, nr_bookings):
         data = {"f": None, "t": None}
     elif trig.id == "book":
 
-        # bookings, my_bookings, my_daily_bookings = get_bookings(d)
-
         if date is not None and data["f"] is not None and data["t"] is not None:
 
             b_start = datetime.strptime(data["f"], "%Y-%m-%dT%H:%M:%S")
             b_end = datetime.strptime(data["t"], "%Y-%m-%dT%H:%M:%S")
 
-
-            # new_booking = create_from_to(data["f"], data["t"] + 1) * int(nr_bookings)
-            #
-            # total_nr_bookings = len([x.start for x in current_user.bookings if x.end >= datetime.now()])
-            #
-            # if np.any((bookings + new_booking) > get_chosen_gym().max_people):
-            #     msg = "Booking interval is overlapping with a full time slot"
-            # elif not is_admin() and np.any(np.logical_and(new_booking, my_bookings)):
-            #     msg = "Booking interval is overlapping with a previous booking"
-            # elif get_chosen_gym().max_booking_per_user_per_day is not None and \
-            #         my_daily_bookings >= get_chosen_gym().max_booking_per_user_per_day:
-            #     msg = "You can not book any more today"
-            # elif get_chosen_gym().max_booking_per_user is not None and \
-            #         total_nr_bookings >= get_chosen_gym().max_booking_per_user:
-            #     msg = f"You can only have {get_chosen_gym().max_booking_per_user} active bookings"
-            # else:
-            db.session.add(Booking(start=b_start, end=b_end, user=current_user,
+            try:
+                validate_booking(b_start, b_end, int(nr_bookings))
+                db.session.add(Booking(start=b_start, end=b_end, user=current_user,
                                        gym=current_user.gyms[0], number=int(nr_bookings)))
-            db.session.commit()
-            data = {"f": None, "t": None}
+                db.session.commit()
+            except AssertionError as e:
+                msg = str(e)
+                msg_color = "danger"
+            except Exception:
+                import traceback
+                traceback.print_exc()
+
+            data["f"] = None
+            data["t"] = None
         else:
             msg = "Invalid selection"
             msg_color = "danger"
-    elif trig.id == "main-graph":
-        picked_date = datetime.strptime(lol["points"][0]["x"].split(" ")[0] + " " + lol["points"][0]["y"], "%Y-%m-%d %H:%M")
-
+    elif trig.id == "main-graph" and lol is not None:
+        picked_date = parse_heatmap_click(lol)
 
         if data["f"] is not None and data["t"] is not None \
                 or data["f"] is None:
             data["f"] = picked_date
             data["t"] = None
         elif data["t"] is None:
-            # if get_chosen_gym().max_booking_length is not None and \
-            #         (new_click - data["f"]) > (get_chosen_gym().max_booking_length - 1):
-            #     data["t"] = data["f"] + (get_chosen_gym().max_booking_length - 1)
-            #     msg = f"You can maximally choose {get_chosen_gym().max_booking_length} quarters"
-            #     msg_color = "warning"
-            # else:
-            data["t"] = picked_date
+            f = parse(data["f"])
+            data["f"] = min(f, picked_date)
+            data["t"] = max(f, picked_date)
+    elif trig.id == "next_week":
+        data["d"] = d = d + timedelta(days=7)
+    elif trig.id == "prev_week":
+        if datetime.now() < d:
+            data["d"] = d = d - timedelta(days=7)
     elif isinstance(trig.id, dict):
         if trig.id["type"] == "delete-booking":
             db.session.delete(db.session.query(Booking).filter_by(id=trig.id["bookingid"]).first())
             db.session.commit()
 
-    return create_heatmap(d, data["f"], data["t"]), data, msg, msg_color, msg != "", create_bookings()
+    return create_heatmap(d, data["f"], data["t"]), data, msg, \
+           msg_color, msg != "", create_bookings(), d.isocalendar()[1]
 
 
 def as_date(k):
@@ -276,7 +136,7 @@ def create_bookings():
                     html.Td(dbc.Button("Delete", id=dict(type="delete-booking", bookingid=b.id), color="danger"))
                 ]),
             )
-    return dbc.Table(result, style={"width": "200px"})
+    return dbc.Table(result, style={"width": "150px"})
 
 
 @app.callback(
@@ -344,7 +204,7 @@ import plotly.graph_objects as go
 
 def create_heatmap(d, f, t):
 
-    week_start_day = d - timedelta(days=d.weekday() % 7)
+    week_start_day = start_of_week(d)
 
     all_bookings = np.zeros(24 * 4 * 7)
     my_bookings = np.zeros(24 * 4 * 7)
@@ -391,7 +251,12 @@ def create_heatmap(d, f, t):
     l = _max + 5
 
     fig = go.Figure(
-        layout=go.Layout(margin=dict(t=0)),
+        layout=go.Layout(
+            margin=dict(t=0, r=0, l=0, b=0),
+            xaxis=dict(fixedrange=True, mirror="allticks", side="top", tickfont = dict(size = 20)),
+            yaxis=dict(fixedrange=True, autorange="reversed"),
+
+        ),
         data=go.Heatmap(
             z=z,
             x=x,
@@ -399,7 +264,9 @@ def create_heatmap(d, f, t):
             hoverongaps=False,
             zmin=-5,
             zmax=_max,
-            # showscale=False,
+            showscale=False,
+            xgap=5,
+            ygap=0.1,
             colorscale=[
                 (0.0, "grey"), (1 / l, "grey"),
                 (1/l, "yellow"), (2 / l, "yellow"),
@@ -409,7 +276,78 @@ def create_heatmap(d, f, t):
             ]
         )
     )
+
+    fig.update_layout(
+        yaxis=dict(
+            tickmode='linear',
+            tick0=0,
+            dtick=8
+        )
+    )
+
+    fig.update_layout(
+        xaxis_tickformat='%a %d %b'
+    )
+
     return fig
+
+
+OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15*x)).strftime("%H:%M"), 'value': x} for x in range(24*4)]
+
+#
+# @app.callback(
+#     [Output("to-drop-down", "options"), Output("to-drop-down", "value"), Output("from-drop-down", "value")],
+#     [Input("from-drop-down", "value"), Input("selection_store", "data")],
+#     [State("to-drop-down", "value")]
+# )
+# def on_chosen_from(from_value, data, prev_value):
+#
+#     trig = get_triggered()
+#
+#     new_to_value = prev_value
+#
+#     if trig.id == "selection_store":
+#         if data['t'] is not None:
+#             d = parse(data['t'])
+#             new_to_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
+#         if data['f'] is not None:
+#             d = parse(data['f'])
+#             new_from_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
+#     else:
+#         if prev_value is None or prev_value <= from_value:
+#             new_to_value = from_value + 4 * 3
+#         else:
+#             new_to_value = prev_value
+#
+#     print(prev_value, new_to_value)
+#     return OPTIONS[from_value+1:], new_to_value, from_value
+
+
+@app.callback(
+    [Output("to-drop-down", "options"), Output("to-drop-down", "value")],
+    [Input("from-drop-down", "value"), Input("selection_store", "data")],
+    [State("to-drop-down", "value")]
+)
+def on_chosen_from(from_value, data, prev_value):
+
+    trig = get_triggered()
+
+    new_to_value = prev_value
+
+    if trig.id == "selection_store":
+        if data['t'] is not None:
+            d = parse(data['t'])
+            new_to_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
+        if data['f'] is not None:
+            d = parse(data['f'])
+            new_from_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
+    else:
+        if prev_value is None or prev_value <= from_value:
+            new_to_value = from_value + 4 * 3
+        else:
+            new_to_value = prev_value
+
+    return OPTIONS[from_value+1:], new_to_value, from_value
 
 
 def create_main_layout():
@@ -420,38 +358,99 @@ def create_main_layout():
         dbc.Col([
             dbc.Container([
                 dbc.Row([
-                    dbc.Col([
-                        dbc.Label("Choose day"),
-                        dcc.DatePickerSingle(
-                            id="datepicker",
-                            date=datetime.now().date(),
-                            min_date_allowed=datetime.now().date(),
-                            max_date_allowed=datetime.now().date() + timedelta(days=14) if not is_admin() else None,
-                            className="m-1",
-                            display_format='DD MMM YYYY'
-                        ),
-                    ]),
 
-                ], justify="between", className="my-3"),
+                ], justify="end"),
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("<", id="prev_week", color="primary"),
+                            html.Span([
+                                html.Span("Week", className="ml-3 mr-1"),
+                                html.Span(id="week", className="mr-3 ml-1"),
+                            ]),
+                            dbc.Button(">", id="next_week", color="primary")
+                        ], style={"text-align": "center"})
+                    ], width=12),
+
+                ], justify="between", className="my-3 mr-2"),
                 dbc.Row([
                     dbc.Col([
                         html.Div([
                             dcc.Graph(id="main-graph", style={"height": "70vh", "width": "100%"})
-                            # html.Table(id="main-table",
-                            #            style={"border-collapse": "collapse",
-                            #                   "width": "100%"})
                         ], className="my-3"),
                     ], width=12),
                 ], justify="between"),
                 dbc.Row([
-                    dbc.Alert(id="msg", is_open=False),
-                    html.Div(dbc.Input(value=1, id="nr_bookings"),
-                             hidden=not is_admin()),
-                    dbc.Button("Book", id="book", color="success")
-                ], justify="end")
+                    dbc.Alert(id="msg", is_open=False)
+                ], justify="end"),
             ], fluid=True)
         ], width=12, xs=7),
         dbc.Col([
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardHeader("New booking"),
+                        dbc.CardBody([
+                            html.Table([
+                                html.Tr([
+                                    html.Td([
+                                        "#"
+                                    ]),
+                                    html.Td([
+                                        html.Div(
+                                            dbc.Input(
+                                                value=1,
+                                                id="nr_bookings",
+                                                type="number",
+                                                min=1,
+                                                max=get_chosen_gym().max_number_per_booking if not is_admin() else get_chosen_gym().max_people
+                                            ), style={"width": "100%"}
+                                        )
+                                    ]),
+
+                                ]),
+                                html.Tr([
+                                    html.Td([
+                                        "Day"
+                                    ]),
+                                    html.Td([
+                                        dcc.DatePickerSingle(
+                                            id="date-picker",
+                                            date=datetime.now().date(),
+                                            min_date_allowed=datetime.now().date(),
+                                        )
+                                    ])
+                                ]),
+                                html.Tr([
+                                    html.Td([
+                                        "Start"
+                                    ]),
+                                    html.Td([
+                                        dcc.Dropdown(
+                                            id="from-drop-down",
+                                            value=4*8,
+                                            options=OPTIONS[:-1]
+                                        )
+                                    ])
+                                ]),
+                                html.Tr([
+                                    html.Td([
+                                        "Stop"
+                                    ]),
+                                    html.Td([
+                                        dcc.Dropdown(
+                                            id="to-drop-down"
+                                        )
+                                    ])
+                                ]),
+                            ])
+                        ]),
+                        dbc.CardFooter([
+                            dbc.Button("Book", id="book", color="success")
+                        ])
+                    ])
+                ], width=12)
+            ]),
             dbc.Row([dbc.Label("My bookings", className="m-3")]),
             dbc.Row(id="my-bookings")
         ], width=12, xs=3)
@@ -459,7 +458,7 @@ def create_main_layout():
 
 
 app.layout = html.Div([
-    dcc.Store(id="selection_store", data={"f": None, "t": None}),
+    dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week()}),
     dcc.Store(id="bookings_store", data={}),
     dcc.Location(id="location"),
     html.Div(id="redirect"),
