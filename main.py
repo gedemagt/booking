@@ -36,7 +36,7 @@ def parse_heatmap_click(data):
 def redraw_all(data1, data):
 
     d = parse(data["d"])
-    return create_bookings(), create_heatmap(d, parse(data["f"]), parse(data["t"]))
+    return create_bookings(), create_heatmap(d, parse(data["f"]), parse(data["t"]), data["show"])
 
 
 @app.callback(
@@ -205,7 +205,7 @@ def path(path):
     return layout, navbar_items, txt
 
 
-def create_heatmap(d, f, t):
+def create_heatmap(d, f, t, yrange):
     week_start_day = start_of_week(d)
     week_end_day = week_start_day + timedelta(days=8)
 
@@ -236,11 +236,18 @@ def create_heatmap(d, f, t):
     _close = _max - config.CLOSE
     l = _max + 5
 
+    if yrange == "am":
+        y_range = [12*4, 24*4]
+    elif yrange == "pm":
+        y_range = [0*4, 12*4]
+    else:
+        y_range = [0, 24*4]
+
     fig = go.Figure(
         layout=go.Layout(
             margin=dict(t=0, r=0, l=0, b=0),
             xaxis=dict(fixedrange=True, mirror="allticks", side="top"),
-            yaxis=dict(fixedrange=True),
+            yaxis=dict(fixedrange=True, range=y_range),
 
         ),
         data=go.Heatmap(
@@ -390,6 +397,23 @@ def update_inputs(data, prev_from_options, prev_from, prev_to_options, prev_to, 
     return prev_from_options, from_value, options, to_value, date
 
 
+@app.callback(Output("selection_store", "data"),
+              [Input("show-all", "n_clicks"), Input("show-am", "n_clicks"), Input("show-pm", "n_clicks")],
+              State("selection_store", "data"), group="ok"
+              )
+def show_selection(all, am, pm, data):
+    trig = get_triggered()
+
+    if trig.id == "show-all":
+        data["show"] = "all"
+    elif trig.id == "show-am":
+        data["show"] = "am"
+    elif trig.id == "show-pm":
+        data["show"] = "pm"
+
+    return data
+
+
 def create_main_layout():
     return dbc.Row([
         dbc.Col([
@@ -478,6 +502,9 @@ def create_main_layout():
             dbc.Container([
                 dbc.Row([
                     dbc.Col([
+
+                    ], width=3),
+                    dbc.Col([
                         html.Div([
                             dbc.Button("<", id="prev_week", color="primary"),
                             html.Span([
@@ -486,14 +513,25 @@ def create_main_layout():
                             ]),
                             dbc.Button(">", id="next_week", color="primary")
                         ], style={"text-align": "center"})
-                    ], width=12),
-
+                    ], width=6),
+                    dbc.Col([
+                        dbc.Row(
+                            dbc.ButtonGroup(
+                                [
+                                    dbc.Button("24H", id="show-all", color="secondary"),
+                                    dbc.Button("AM", id="show-am", color="secondary"),
+                                    dbc.Button("PM", id="show-pm", color="secondary")
+                                ]
+                            ),
+                            justify="end"
+                        )
+                    ], width=3)
                 ], justify="between", className="my-3 mr-2"),
                 dbc.Row([
                     dbc.Col([
                         html.Div([
                             dcc.Graph(
-                                figure=create_heatmap(datetime.now(), None, None),
+                                figure=create_heatmap(datetime.now(), None, None, "pm"),
                                 id="main-graph",
                                 style={"height": "70vh", "width": "100%"})
                         ], className="my-3"),
@@ -505,7 +543,7 @@ def create_main_layout():
 
 
 app.layout = html.Div([
-    dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(), "source": None}),
+    dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(), "source": None, "show": "pm"}),
     dcc.Store(id="bookings_store", data={}),
     dcc.Location(id="location"),
     html.Div(id="redirect"),
