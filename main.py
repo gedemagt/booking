@@ -214,7 +214,7 @@ def create_heatmap(d, f, t):
 
     x = [(week_start_day.date() + timedelta(days=x)) for x in range(7)]
     start = datetime(1, 1, 1)
-    y = [(start + timedelta(minutes=15 * k)).strftime("%H:%M") for k in range(24 * 4)]
+    y = list(reversed([(start + timedelta(minutes=15 * k)).strftime("%H:%M") for k in range(24 * 4)]))
 
     all_bookings[my_bookings > 0] = -3
 
@@ -229,8 +229,8 @@ def create_heatmap(d, f, t):
     if week_start_day < datetime.now() < week_end_day:
         all_bookings[:timeslot_index(datetime.now(), week_start_day) + 1] = -4.5
 
-    z = np.reshape(all_bookings, (7, 24 * 4)).transpose()
-    hover = np.reshape(hover, (7, 24 * 4)).transpose()
+    z = np.flipud(np.reshape(all_bookings, (7, 24 * 4)).transpose())
+    hover = np.flipud(np.reshape(hover, (7, 24 * 4)).transpose())
 
     _max = get_chosen_gym().max_people
     _close = _max - config.CLOSE
@@ -239,8 +239,8 @@ def create_heatmap(d, f, t):
     fig = go.Figure(
         layout=go.Layout(
             margin=dict(t=0, r=0, l=0, b=0),
-            xaxis=dict(fixedrange=True, mirror="allticks", side="top", tickfont=dict(size=20)),
-            yaxis=dict(fixedrange=True, autorange="reversed"),
+            xaxis=dict(fixedrange=True, mirror="allticks", side="top"),
+            yaxis=dict(fixedrange=True),
 
         ),
         data=go.Heatmap(
@@ -270,8 +270,8 @@ def create_heatmap(d, f, t):
     fig.update_layout(
         yaxis=dict(
             tickmode='linear',
-            tick0=0,
-            dtick=8
+            tick0=7,
+            dtick=4
         )
     )
 
@@ -284,6 +284,23 @@ def create_heatmap(d, f, t):
 
 OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15 * x)).strftime("%H:%M"), 'value': x} for x in
            range(24 * 4 + 1)]
+
+
+@app.callback(
+    [Output("msg2", "children"), Output("msg2", "color"),
+     Output("msg2", "is_open"), Output("book", "disabled")],
+    [Input("selection_store", "data")],
+    [State("nr_bookings", "value")]
+)
+def val_booking(data, nr):
+    disabled = True
+    if data["f"] is not None and data["t"] is not None:
+        try:
+            validate_booking(parse(data["f"]), parse(data["t"]), int(nr))
+            disabled = False
+        except AssertionError as e:
+            return str(e), "danger", True, disabled
+    return "", "success", False, disabled
 
 
 @app.callback(
@@ -378,9 +395,7 @@ def create_main_layout():
         dbc.Col([
             dbc.Row([
                 dbc.Col([
-                    dbc.Card([
-                        dbc.CardBody(html.H4(f"Welcome {current_user.username}"))
-                    ], className="my-3"),
+                    html.H4(f"Welcome {current_user.username}", className="my-3"),
                     dbc.Card([
                         dbc.CardHeader("New booking"),
                         dbc.CardBody([
@@ -441,10 +456,11 @@ def create_main_layout():
                                     ], style={"width": "50px"})
                                 ]),
                             ]),
-                            dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-2")
+                            dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-2"),
+                            dbc.Alert(id="msg2", is_open=False, className="mt-2")
                         ]),
                         dbc.CardFooter([
-                            dbc.Button("Book", id="book", color="success")
+                            dbc.Row([dbc.Button("Book", id="book", color="primary")], justify="end")
                         ])
                     ])
                 ], width=12)
@@ -503,7 +519,7 @@ app.layout = html.Div([
         dark=True,
         id="navbar"
     ),
-    html.Div(id="layout")
+    dbc.Container(html.Div(id="layout"), fluid=True)
 ])
 
 init_flask_admin()
