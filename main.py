@@ -133,7 +133,7 @@ def create_bookings():
                     html.Td("-", style={"text-align": "left"}),
                     html.Td(b.end.strftime("%H:%M"), style={"text-align": "left"}),
                     html.Td(b.number, style={"text-align": "left"}),
-                    html.Td(dbc.Button("Delete", id=dict(type="delete-booking", bookingid=b.id), color="danger"))
+                    html.Td(dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id), color="danger"))
                 ]),
             )
     return dbc.Table(result, style={"width": "100%"})
@@ -426,6 +426,8 @@ def create_main_layout():
                                             options=OPTIONS[:-1]
                                         )
                                     ], style={"width": "50px"}),
+                                ]),
+                                html.Tr([
                                     html.Td([
                                         "Stop"
                                     ], style={"width": "50px"}),
@@ -448,10 +450,14 @@ def create_main_layout():
             dbc.Card([
                 dbc.CardHeader("My bookings"),
                 dbc.CardBody([
-                    html.Div(id="my-bookings")
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div(id="my-bookings")
+                        ])
+                    ])
                 ])
             ], className="my-3")
-        ], width=3),
+        ], width=12, lg=3),
         dbc.Col([
             dbc.Container([
                 dbc.Row([
@@ -478,7 +484,7 @@ def create_main_layout():
                     ], width=12),
                 ], justify="between"),
             ], fluid=True)
-        ], width=7),
+        ], width=12, lg=7),
     ], className="p-3")
 
 
