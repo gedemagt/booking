@@ -288,19 +288,19 @@ OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15 * x)).strftime("%
 
 @app.callback(
     [Output("msg2", "children"), Output("msg2", "color"),
-     Output("msg2", "is_open"), Output("book", "disabled")],
+     Output("msg2-container", "style"), Output("book", "disabled")],
     [Input("selection_store", "data")],
     [State("nr_bookings", "value")]
 )
 def val_booking(data, nr):
-    disabled = True
+    style = {"visibility": "hidden"}
     if data["f"] is not None and data["t"] is not None:
         try:
             validate_booking(parse(data["f"]), parse(data["t"]), int(nr))
-            disabled = False
         except AssertionError as e:
-            return str(e), "danger", True, disabled
-    return "", "success", False, disabled
+            style = {"visibility": "visible"}
+            return str(e), "danger", style, True
+    return "Empty", "success", style, False
 
 
 @app.callback(
@@ -434,7 +434,7 @@ def create_main_layout():
                                 ]),
                                 html.Tr([
                                     html.Td([
-                                        "Start"
+                                        "Time"
                                     ], style={"width": "50px"}),
                                     html.Td([
                                         dcc.Dropdown(
@@ -443,10 +443,8 @@ def create_main_layout():
                                             options=OPTIONS[:-1]
                                         )
                                     ], style={"width": "50px"}),
-                                ]),
-                                html.Tr([
                                     html.Td([
-                                        "Stop"
+                                        html.Div("-", className="text-center")
                                     ], style={"width": "50px"}),
                                     html.Td([
                                         dcc.Dropdown(
@@ -456,8 +454,8 @@ def create_main_layout():
                                     ], style={"width": "50px"})
                                 ]),
                             ]),
-                            dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-2"),
-                            dbc.Alert(id="msg2", is_open=False, className="mt-2")
+                            dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
+                            html.Div(dbc.Alert("Empty", id="msg2", is_open=True, className="mt-3 mb-0"), id="msg2-container", style={"visibility": "hidden"})
                         ]),
                         dbc.CardFooter([
                             dbc.Row([dbc.Button("Book", id="book", color="primary")], justify="end")
