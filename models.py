@@ -1,13 +1,7 @@
-import os
-from datetime import datetime
-
 from flask_sqlalchemy import SQLAlchemy
 from flask_user import UserMixin
-from wtforms import ValidationError
 
 from app import fapp
-from config import DB_PATH
-from custom import CustomUserManager
 
 db = SQLAlchemy(fapp)
 
@@ -68,30 +62,4 @@ class Gym(db.Model):
 
     bookings = db.relationship('Booking', backref=db.backref('gym', lazy=True))
 
-
-user_manager = CustomUserManager(fapp, db, UserClass=User)
-
-
-if not os.path.exists(DB_PATH):
-    print("Initializing database")
-
-    db.create_all()
-
-    g = Gym(name="TestGym", code="TestGym")
-
-    admin = User(
-        active=True,
-        username="admin",
-        email_confirmed_at=datetime.now(),
-        email=os.getenv("ADMIN_EMAIL", "gedemagt+bookingadmin@gmail.com"),
-        password=user_manager.password_manager.hash_password(os.getenv("ADMIN_PASS", "changeme")),
-        role="ADMIN",
-    )
-
-    g.admins.append(admin)
-    admin.gyms.append(g)
-
-    db.session.add(g)
-    db.session.add(admin)
-    db.session.commit()
 

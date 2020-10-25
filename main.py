@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 from datetime import datetime, timedelta, date
 
@@ -17,8 +18,9 @@ import config
 from admin import init_flask_admin
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
+from custom import CustomUserManager
 from gymadmin import create_gym_admin_layout
-from models import Booking, db, Gym
+from models import Booking, db, Gym, User
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin
 from app import fapp
@@ -151,7 +153,7 @@ def toggle_popover(n, is_open):
 
 
 @app.callback(
-    [Output("redirect", "children"), Output("gym-err", "children"), Output("gym-err", "is_open")],
+    [Output("location", "pathname"), Output("gym-err", "children"), Output("gym-err", "is_open")],
     [Input("add_gym", "n_clicks")],
     [State("gym_code", "value")]
 )
@@ -161,9 +163,9 @@ def on_new_gym(n, gym_code):
         if g:
             current_user.gyms.append(g)
             db.session.commit()
-            return dcc.Location(pathname="/", id="someid_doesnt_matter"), "", False
+            return "/", "", False
 
-    return "", "Gym not found", n is not None
+    return "/", "Gym not found", n is not None
 
 
 @app.callback(
@@ -505,6 +507,34 @@ app.layout = html.Div([
 ])
 
 init_flask_admin()
+
+user_manager = CustomUserManager(fapp, db, UserClass=User)
+
+
+if not os.path.exists(config.DB_PATH):
+    print("Initializing database")
+
+    db.create_all()
+
+    g = Gym(name="TestGym", code="TestGym")
+
+    admin = User(
+        active=True,
+        username="admin",
+        email_confirmed_at=datetime.now(),
+        email=os.getenv("ADMIN_EMAIL", "gedemagt+bookingadmin@gmail.com"),
+        password=user_manager.password_manager.hash_password(os.getenv("ADMIN_PASS", "changeme")),
+        role="ADMIN",
+    )
+
+    g.admins.append(admin)
+    admin.gyms.append(g)
+
+    db.session.add(g)
+    db.session.add(admin)
+    db.session.commit()
+
+
 
 if __name__ == '__main__':
 
