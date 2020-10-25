@@ -449,6 +449,7 @@ def create_main_layout():
                                             id="date-picker",
                                             date=datetime.now().date(),
                                             min_date_allowed=datetime.now().date(),
+                                            display_format="DD-MM-YYYY"
                                         )
                                     ], style={"width": "50px"}),
                                     html.Td(),
