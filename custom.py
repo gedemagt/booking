@@ -18,7 +18,6 @@ class CustomUserManager(UserManager):
 
     def password_validator(self, form, field):
         password = field.data
-        print(password)
         if len(password) < 1:
             raise ValidationError('Password must have at least 1 character')
 
