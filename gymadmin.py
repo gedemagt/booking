@@ -2,33 +2,53 @@ import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 from dash.dependencies import State
-from dash_extensions.enrich import Trigger
+from dash.exceptions import PreventUpdate
+from dash_extensions.enrich import Trigger, Output
+from dash_extensions.snippets import get_triggered
 
 from app import app
-from models import db
+from models import db, User
 from utils import get_chosen_gym
 
+
 @app.callback(
-    Trigger("save_gym_settings", "n_clicks"),
+    [Output("save-gym-alert", "children"), Output("save-gym-alert", "color"), Output("save-gym-alert", "is_open")],
+    [Trigger("save_gym_settings", "n_clicks")],
     [State("max_persons", "value"), State("max_booking_length", "value"), State("max_booking_per_user", "value"),
-     State("max_time_per_user_per_day", "value"), State("max_number_per_booking", "value")]
+     State("max_time_per_user_per_day", "value"), State("max_number_per_booking", "value"), State("gym_admins", "value")]
 )
-def on_save_gym(max_persons, max_booking_length, max_booking_per_user, max_time_per_user_per_day, max_number_per_booking):
-    print(max_persons, max_booking_length, max_booking_per_user, max_time_per_user_per_day, max_number_per_booking)
-    g = get_chosen_gym()
+def on_save_gym(max_persons, max_booking_length, max_booking_per_user,
+                max_time_per_user_per_day, max_number_per_booking, admins):
 
-    g.max_people = max_persons
-    g.max_booking_length = max_booking_length
-    g.max_booking_per_user = max_booking_per_user
-    g.max_time_per_user_per_day = max_time_per_user_per_day
-    g.max_number_per_booking = max_number_per_booking
+    trig = get_triggered()
+    if trig.id is None:
+        raise PreventUpdate
 
-    db.session.add(g)
-    db.session.commit()
+    try:
+        g = get_chosen_gym()
+
+        g.max_people = max_persons
+        g.max_booking_length = max_booking_length
+        g.max_booking_per_user = max_booking_per_user
+        g.max_time_per_user_per_day = max_time_per_user_per_day
+        g.max_number_per_booking = max_number_per_booking
+
+        get_chosen_gym().admins = [User.query.filter_by(id=x).first() for x in admins]
+
+        db.session.add(g)
+        db.session.commit()
+        return "Success", "success", True
+    except Exception as e:
+        print(e)
+        return str(e), "danger", True
 
 
 def create_gym_admin_layout():
     gym = get_chosen_gym()
+
+    users = gym.users
+    admins = gym.admins
+
     return dbc.Row([
         dbc.Col([], width=4),
         dbc.Col([
@@ -42,7 +62,6 @@ def create_gym_admin_layout():
                             color="secondary",
                         ),
                     ],
-                    row=True,
                 ),
                 dbc.FormGroup(
                     [
@@ -53,7 +72,6 @@ def create_gym_admin_layout():
                             color="secondary",
                         ),
                     ],
-                    row=True,
                 ),
                 dbc.FormGroup(
                     [
@@ -64,18 +82,16 @@ def create_gym_admin_layout():
                             color="secondary",
                         ),
                     ],
-                    row=True,
                 ),
                 dbc.FormGroup(
                     [
-                        dbc.Label("Max bookings per user per day", html_for="max_time_per_user_per_day"),
+                        dbc.Label("Max timeslots per user per day", html_for="max_time_per_user_per_day"),
                         dbc.Input(type="number", id="max_time_per_user_per_day", value=gym.max_time_per_user_per_day, min=1),
                         dbc.FormText(
-                            "The number of active bookings a user can have in one day",
+                            "The maximum number of timeslots (15 min) a user can have in one day",
                             color="secondary",
                         ),
                     ],
-                    row=True,
                 ),
                 dbc.FormGroup(
                     [
@@ -86,9 +102,24 @@ def create_gym_admin_layout():
                             color="secondary",
                         ),
                     ],
-                    row=True,
                 ),
-                dbc.Row(dbc.Button("Save", id="save_gym_settings", color="primary"), justify="end")
+                dbc.FormGroup(
+                    [
+                        dbc.Label("Gym admins", html_for="gym_admins"),
+                        dcc.Dropdown(
+                            id="gym_admins",
+                            value=[x.id for x in admins],
+                            options=[
+                                {"label": x.username, "value": x.id} for x in users
+                            ],
+                            multi=True
+                        ),
+                    ],
+                ),
+            ]),
+            dbc.Row([
+                dbc.Col(dbc.Alert(id="save-gym-alert", is_open=False, duration=3000), width=8),
+                dbc.Col(dbc.Row(dbc.Button("Save", id="save_gym_settings", color="primary"), justify="end"), width=4)
             ])
         ], width=4)
     ], className="p-3")

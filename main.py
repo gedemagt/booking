@@ -17,10 +17,9 @@ import config
 from admin import init_flask_admin
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
-from components import create_popover
 from gymadmin import create_gym_admin_layout
 from models import Booking, db, Gym
-from time_utils import start_of_week, start_of_day, timeslot_index, parse
+from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin
 from app import fapp
 
@@ -112,13 +111,6 @@ def on_week(data):
     return data, d.isocalendar()[1]
 
 
-def as_date(k):
-    if isinstance(k, datetime):
-        return k
-    else:
-        return datetime.strptime(k, "%Y-%m-%dT%H:%M:%S")
-
-
 def create_bookings():
     k = defaultdict(list)
 
@@ -180,9 +172,6 @@ def on_new_gym(n, gym_code):
 )
 def path(path):
     navbar_items = [
-        dbc.NavItem(html.A(html.Button("Gym", className="btn btn-primary"), href="/gym_admin")),
-        # dbc.NavItem(),
-        dbc.NavItem(create_popover()),
         dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
     ]
 
@@ -202,10 +191,15 @@ def path(path):
         ], fluid=True)
         txt = f"{current_user.username}"
     else:
-        layout = create_main_layout()
+        if is_admin():
+            navbar_items.insert(0, dbc.NavItem(html.A(html.Button("Gym", className="btn btn-primary"), href="/gym_admin")))
+
         if path and path.endswith("gym_admin"):
             layout = create_gym_admin_layout()
-        txt = f"{current_user.username} @ {get_chosen_gym().name}"
+        else:
+            layout = create_main_layout()
+
+        txt = f"{get_chosen_gym().name}"
     return layout, navbar_items, txt
 
 
@@ -214,6 +208,7 @@ def create_heatmap(d, f, t):
     week_end_day = week_start_day + timedelta(days=8)
 
     all_bookings, my_bookings = create_weekly_booking_map(d)
+    hover = all_bookings.copy()
 
     x = [(week_start_day.date() + timedelta(days=x)) for x in range(7)]
     start = datetime(1, 1, 1)
@@ -233,6 +228,7 @@ def create_heatmap(d, f, t):
         all_bookings[:timeslot_index(datetime.now(), week_start_day) + 1] = -4.5
 
     z = np.reshape(all_bookings, (7, 24 * 4)).transpose()
+    hover = np.reshape(hover, (7, 24 * 4)).transpose()
 
     _max = get_chosen_gym().max_people
     _close = _max - config.CLOSE
@@ -246,9 +242,12 @@ def create_heatmap(d, f, t):
 
         ),
         data=go.Heatmap(
+            name="",
             z=z,
             x=x,
             y=y,
+            text=hover,
+            hovertemplate="%{y}: %{text}",
             hoverongaps=False,
             zmin=-5,
             zmax=_max,
@@ -260,7 +259,8 @@ def create_heatmap(d, f, t):
                 (1 / l, "yellow"), (2 / l, "yellow"),
                 (2 / l, "green"), (5 / l, "green"),
                 (5 / l, "blue"), ((_close + 5) / l, "blue"),
-                ((_close + 5) / l, "orange"), (0.99, "orange"), (1.0, "red"),
+                ((_close + 5) / l, "orange"), (0.99, "orange"),
+                (0.99, "red"), (1.0, "red")
             ]
         )
     )
@@ -281,7 +281,7 @@ def create_heatmap(d, f, t):
 
 
 OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15 * x)).strftime("%H:%M"), 'value': x} for x in
-           range(24 * 4)]
+           range(24 * 4 + 1)]
 
 
 @app.callback(
@@ -328,18 +328,25 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
 
 
 @app.callback(
-    [Output("from-drop-down", "value"), Output("to-drop-down", "options"),
+    [Output("from-drop-down", "options"), Output("from-drop-down", "value"), Output("to-drop-down", "options"),
      Output("to-drop-down", "value"), Output("date-picker", "date")],
     [Input("selection_store", "data")],
-    [State("from-drop-down", "value"), State("to-drop-down", "options"),
+    [State("from-drop-down", "options"), State("from-drop-down", "value"), State("to-drop-down", "options"),
      State("to-drop-down", "value"), State("date-picker", "date")]
 )
-def update_inputs(data, prev_from, prev_options, prev_to, prev_date):
+def update_inputs(data, prev_from_options, prev_from, prev_to_options, prev_to, prev_date):
+    trig = get_triggered()
+    if trig.id is None:
+        raise PreventUpdate
+
     from_value = None
     to_value = None
-    date = start_of_day(datetime.now())
+    options = prev_to_options
+
+    date = prev_date
 
     if data.get("source", "") == "graph":
+        date = start_of_day(datetime.now())
         if data["f"] is not None:
             d = parse(data["f"])
             date = start_of_day(d)
@@ -347,14 +354,21 @@ def update_inputs(data, prev_from, prev_options, prev_to, prev_date):
         if data["t"] is not None:
             d = parse(data["t"])
             to_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
-
-        return from_value, OPTIONS[from_value + 1:] if from_value else OPTIONS[1:], to_value, date.date()
+        date = date.date()
+        options = OPTIONS[from_value + 1:] if from_value else OPTIONS[1:]
     elif data.get("source", "") == "input":
-        return prev_from if data["f"] is not None else None, \
-               prev_options , \
-               prev_to if data["t"] is not None else None, prev_date
+        from_value = prev_from if data["f"] is not None else None
+        options = prev_to_options if data["f"] is None else OPTIONS[int((parse(data["f"]) - start_of_day(parse(data["f"]))).total_seconds() / 60 / 15) + 1:]
+        to_value = prev_to if data["t"] is not None else None
+
+    if as_date(date) == datetime.now().date():
+        prev_from_options = OPTIONS[timeslot_index(datetime.now())+1:]
+        if from_value is None:
+            options = OPTIONS[timeslot_index(datetime.now())+2:]
     else:
-        raise PreventUpdate
+        prev_from_options = OPTIONS
+
+    return prev_from_options, from_value, options, to_value, date
 
 
 def create_main_layout():
@@ -362,6 +376,9 @@ def create_main_layout():
         dbc.Col([
             dbc.Row([
                 dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody(html.H4(f"Welcome {current_user.username}"))
+                    ], className="my-3"),
                     dbc.Card([
                         dbc.CardHeader("New booking"),
                         dbc.CardBody([
@@ -453,7 +470,10 @@ def create_main_layout():
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            dcc.Graph(id="main-graph", style={"height": "70vh", "width": "100%"})
+                            dcc.Graph(
+                                figure=create_heatmap(datetime.now(), None, None),
+                                id="main-graph",
+                                style={"height": "70vh", "width": "100%"})
                         ], className="my-3"),
                     ], width=12),
                 ], justify="between"),
@@ -470,6 +490,7 @@ app.layout = html.Div([
     dbc.NavbarSimple(
         children=[],
         brand="Booking",
+        brand_href="/",
         color="primary",
         dark=True,
         id="navbar"

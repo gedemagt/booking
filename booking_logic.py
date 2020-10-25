@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 import humanize
 import numpy as np
@@ -6,7 +6,7 @@ from flask_login import current_user
 
 from models import Booking
 from time_utils import start_of_day, start_of_week
-from utils import get_chosen_gym
+from utils import get_chosen_gym, is_admin
 
 
 def create_from_to(f, t):
@@ -33,6 +33,29 @@ def validate_booking(start, end, number):
     if end <= start:
         raise AssertionError("Start must come before end")
 
+    overlapping = [
+        x for x in current_user.bookings if
+        (start <= x.start < end) or
+        (start < x.end <= end) or
+        (x.start <= start and x.end >= end)
+    ]
+
+    if len(overlapping) > 0:
+        raise AssertionError(
+            f"Selection is overlapping with another booking")
+
+    all_bookings, my_bookings = create_daily_booking_map(start)
+    day = start_of_day(start)
+    start_seconds = (start - day).total_seconds() / 60 / 15
+    end_seconds = (end - day).total_seconds() / 60 / 15
+
+    start_end_array = create_daily_from_to(int(start_seconds), int(end_seconds)) * number
+    if gym.max_people and np.any((all_bookings + start_end_array) > gym.max_people):
+        raise AssertionError(f"Booking exceeds capacity")
+
+    if is_admin():
+        return
+
     if gym.max_booking_length and ((end - start).total_seconds() / 60 / 15) > gym.max_booking_length:
         maxlen = humanize.precisedelta(timedelta(seconds=gym.max_booking_length * 15 * 60))
         raise AssertionError(f"Max booking length is {maxlen}")
@@ -46,25 +69,8 @@ def validate_booking(start, end, number):
     if gym.max_time_per_user_per_day is not None:
         total_seconds = sum((x.end - x.start).total_seconds() for x in current_user.bookings if x.start.date() == start.date())
         if ((total_seconds + (end - start).total_seconds()) / 60 / 15) > gym.max_time_per_user_per_day:
-            raise AssertionError(f"You can not book more than {gym.max_time_per_user_per_day} quarters per day")
-
-    overlapping = [x for x in current_user.bookings if
-                   (start <= x.start < end) or
-                   (start < x.end <= end) or
-                   (x.start <= start and x.end >= end)
-                   ]
-    if len(overlapping) > 0:
-        raise AssertionError(
-            f"Selection is overlapping with another booking")
-
-    all_bookings, my_bookings = create_daily_booking_map(start)
-    day = start_of_day(start)
-    start = (start - day).total_seconds() / 60 / 15
-    end = (end - day).total_seconds() / 60 / 15
-
-    start_end_array = create_daily_from_to(int(start), int(end)) * number
-    if gym.max_people and np.any((all_bookings + start_end_array) > gym.max_people):
-        raise AssertionError(f"Booking exceeds capacity")
+            maxlen = humanize.precisedelta(timedelta(seconds=gym.max_time_per_user_per_day * 15 * 60))
+            raise AssertionError(f"You can not book more than {maxlen} per day")
 
 
 def create_daily_booking_map(d):

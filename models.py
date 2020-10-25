@@ -6,6 +6,7 @@ from flask_user import UserMixin
 from wtforms import ValidationError
 
 from app import fapp
+from config import DB_PATH
 from custom import CustomUserManager
 
 db = SQLAlchemy(fapp)
@@ -71,7 +72,7 @@ class Gym(db.Model):
 user_manager = CustomUserManager(fapp, db, UserClass=User)
 
 
-if not os.path.exists(fapp.config['SQLALCHEMY_DATABASE_URI'].split("/")[-1]):
+if not os.path.exists(DB_PATH):
     print("Initializing database")
 
     db.create_all()
