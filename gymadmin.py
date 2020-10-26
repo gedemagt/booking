@@ -98,7 +98,11 @@ def on_new_zone():
         if len(get_chosen_gym().zones) == 1:
             raise PreventUpdate
         zone_id = trig.id["id"]
-        db.session.delete(Zone.query.filter_by(id=zone_id).first())
+        zone = Zone.query.filter_by(id=zone_id).first()
+        for booking in zone.bookings:
+            db.session.delete(booking)
+
+        db.session.delete(zone)
         db.session.commit()
 
     return create_zones_list()
