@@ -70,7 +70,7 @@ def on_booking(data, nr_bookings, view_data):
         b_end = datetime.strptime(data["t"], "%Y-%m-%dT%H:%M:%S")
 
         try:
-            validate_booking(b_start, b_end, int(nr_bookings))
+            validate_booking(b_start, b_end, int(nr_bookings), view_data["zone"])
             zone = next(x for x in get_chosen_gym().zones if x.id == view_data["zone"])
             db.session.add(Booking(start=b_start, end=b_end, user=current_user,
                                    zone=zone, number=int(nr_bookings)))
@@ -90,7 +90,7 @@ def on_booking(data, nr_bookings, view_data):
         msg = "Invalid selection"
         msg_color = "danger"
 
-    return msg, msg_color, True, data
+    return msg, msg_color, False, data
 
 
 @app.callback(
@@ -299,13 +299,13 @@ OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15 * x)).strftime("%
     [Output("msg2", "children"), Output("msg2", "color"),
      Output("msg2-container", "style"), Output("book", "disabled")],
     [Input("selection_store", "data")],
-    [State("nr_bookings", "value")]
+    [State("nr_bookings", "value"), State("view_store", "data")]
 )
-def val_booking(data, nr):
+def val_booking(data, nr, view_data):
     style = {"visibility": "hidden"}
     if data["f"] is not None and data["t"] is not None:
         try:
-            validate_booking(parse(data["f"]), parse(data["t"]), int(nr))
+            validate_booking(parse(data["f"]), parse(data["t"]), int(nr), view_data["zone"])
         except AssertionError as e:
             style = {"visibility": "visible"}
             return str(e), "danger", style, True
@@ -614,4 +614,4 @@ if not os.path.exists(config.DB_PATH):
 if __name__ == '__main__':
 
     app.suppress_callback_exceptions = True
-    app.run_server(debug=True, dev_tools_ui=False)
+    app.run_server(debug=True, dev_tools_ui=True)

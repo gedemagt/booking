@@ -66,11 +66,11 @@ class Gym(db.Model):
 class Zone(db.Model):
     __tablename__ = 'zones'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False, unique=True)
+    name = db.Column(db.String, nullable=False)
 
     gym_id = db.Column(db.Integer(), db.ForeignKey('gyms.id', ondelete='CASCADE'), nullable=False)
 
-    max_people = db.Column(db.Integer, nullable=False, default=10)
+    max_people = db.Column(db.Integer)
     # max_booking_length = db.Column(db.Integer, nullable=True) # Number of timeslots
     # max_booking_per_user = db.Column(db.Integer, nullable=True) # Number of active bookings
     # max_time_per_user_per_day = db.Column(db.Integer, nullable=True) # Number of active bookings on one day

@@ -35,17 +35,6 @@ def validate_booking(start, end, number, zone):
     if end <= start:
         raise AssertionError("Start must come before end")
 
-    overlapping = [
-        x for x in current_user.bookings if
-        (start <= x.start < end) or
-        (start < x.end <= end) or
-        (x.start <= start and x.end >= end)
-    ]
-
-    if len(overlapping) > 0:
-        raise AssertionError(
-            f"Selection is overlapping with another booking")
-
     # Then we check capacity
     all_bookings, zone_bookings = create_daily_booking_map(start)
 
@@ -57,6 +46,17 @@ def validate_booking(start, end, number, zone):
 
     if is_admin():
         return
+
+    overlapping = [
+        x for x in current_user.bookings if
+        (start <= x.start < end) or
+        (start < x.end <= end) or
+        (x.start <= start and x.end >= end)
+    ]
+
+    if len(overlapping) > 0:
+        raise AssertionError(
+            f"Selection is overlapping with another booking")
 
     if gym.max_booking_length and ((end - start).total_seconds() / 60 / 15) > gym.max_booking_length:
         maxlen = humanize.precisedelta(timedelta(seconds=gym.max_booking_length * 15 * 60))
