@@ -39,7 +39,7 @@ class Booking(db.Model):
     end = db.Column(db.DateTime, nullable=False)
 
     user_id = db.Column(db.Integer(), db.ForeignKey('users.id', ondelete='CASCADE'))
-    gym_id = db.Column(db.Integer(), db.ForeignKey('gyms.id', ondelete='CASCADE'), nullable=False)
+    zone_id = db.Column(db.Integer(), db.ForeignKey('zones.id', ondelete='CASCADE'), nullable=False)
 
 
 class Gym(db.Model):
@@ -60,6 +60,21 @@ class Gym(db.Model):
     users = db.relationship('User', secondary=gym_memberships, lazy='subquery',
                              backref=db.backref('gyms', lazy=True))
 
-    bookings = db.relationship('Booking', backref=db.backref('gym', lazy=True))
+    zones = db.relationship('Zone', backref=db.backref('gym', lazy=True))
 
+
+class Zone(db.Model):
+    __tablename__ = 'zones'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False, unique=True)
+
+    gym_id = db.Column(db.Integer(), db.ForeignKey('gyms.id', ondelete='CASCADE'), nullable=False)
+
+    max_people = db.Column(db.Integer, nullable=False, default=10)
+    # max_booking_length = db.Column(db.Integer, nullable=True) # Number of timeslots
+    # max_booking_per_user = db.Column(db.Integer, nullable=True) # Number of active bookings
+    # max_time_per_user_per_day = db.Column(db.Integer, nullable=True) # Number of active bookings on one day
+    # max_number_per_booking = db.Column(db.Integer, nullable=False, default=1) # Number of persons per booking
+
+    bookings = db.relationship('Booking', backref=db.backref('zone', lazy=True))
 

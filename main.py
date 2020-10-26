@@ -20,7 +20,7 @@ from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
 from custom import CustomUserManager
 from gymadmin import create_gym_admin_layout
-from models import Booking, db, Gym, User
+from models import Booking, db, Gym, User, Zone
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin
 from app import fapp
@@ -32,11 +32,10 @@ def parse_heatmap_click(data):
 
 @app.callback(
     [Output("my-bookings", "children"), Output("main-graph", "figure")],
-    [Input("bookings_store", "data"), Input("selection_store", "data")], group="redraw")
-def redraw_all(data1, data):
-
+    [Input("bookings_store", "data"), Input("selection_store", "data"), Input("view_store", "data")], group="redraw")
+def redraw_all(data1, data, view_data):
     d = parse(data["d"])
-    return create_bookings(), create_heatmap(d, parse(data["f"]), parse(data["t"]), data["show"])
+    return create_bookings(), create_heatmap(d, parse(data["f"]), parse(data["t"]), view_data["show"], view_data["zone"])
 
 
 @app.callback(
@@ -60,9 +59,9 @@ def on_delete():
     [Output("msg", "children"), Output("msg", "color"),
      Output("msg", "is_open"), Output("selection_store", "data")],
     [Trigger("book", "n_clicks")],
-    [State("selection_store", "data"), State("nr_bookings", "value")], group="ok"
+    [State("selection_store", "data"), State("nr_bookings", "value"), State("view_store", "data")], group="ok"
 )
-def on_booking(data, nr_bookings):
+def on_booking(data, nr_bookings, view_data):
     msg = ""
     msg_color = "warning"
     if date is not None and data["f"] is not None and data["t"] is not None:
@@ -72,8 +71,9 @@ def on_booking(data, nr_bookings):
 
         try:
             validate_booking(b_start, b_end, int(nr_bookings))
+            zone = next(x for x in get_chosen_gym().zones if x.id == view_data["zone"])
             db.session.add(Booking(start=b_start, end=b_end, user=current_user,
-                                   gym=current_user.gyms[0], number=int(nr_bookings)))
+                                   zone=zone, number=int(nr_bookings)))
             db.session.commit()
             msg = "Success"
             msg_color = "success"
@@ -124,7 +124,7 @@ def create_bookings():
     for d in sorted(k.keys()):
         result.append(
             html.Tr([
-                html.Td(d.strftime("%d %b %Y"), style={"background-color": "lightgrey"}, colSpan=3),
+                html.Td(d.strftime("%d %b %Y"), style={"background-color": "lightgrey"}, colSpan=4),
                 html.Td("#", style={"background-color": "lightgrey"}, colSpan=2),
             ])
         )
@@ -134,6 +134,7 @@ def create_bookings():
                     html.Td(b.start.strftime("%H:%M"), style={"text-align": "left"}),
                     html.Td("-", style={"text-align": "left"}),
                     html.Td(b.end.strftime("%H:%M"), style={"text-align": "left"}),
+                    html.Td(b.zone.name, style={"text-align": "left"}),
                     html.Td(b.number, style={"text-align": "left"}),
                     html.Td(dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id), color="danger"))
                 ]),
@@ -170,9 +171,10 @@ def on_new_gym(n, gym_code):
 
 @app.callback(
     [Output("layout", "children"), Output("navbar", "children"), Output("navbar", "brand")],
-    [Input("location", "pathname")]
+    [Input("location", "pathname")], group="view"
 )
 def path(path):
+
     navbar_items = [
         dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
     ]
@@ -205,11 +207,11 @@ def path(path):
     return layout, navbar_items, txt
 
 
-def create_heatmap(d, f, t, yrange):
+def create_heatmap(d, f, t, yrange, zone):
     week_start_day = start_of_week(d)
     week_end_day = week_start_day + timedelta(days=8)
 
-    all_bookings, my_bookings = create_weekly_booking_map(d)
+    all_bookings, my_bookings = create_weekly_booking_map(d, zone)
     hover = all_bookings.copy()
 
     x = [(week_start_day.date() + timedelta(days=x)) for x in range(7)]
@@ -397,19 +399,27 @@ def update_inputs(data, prev_from_options, prev_from, prev_to_options, prev_to, 
     return prev_from_options, from_value, options, to_value, date
 
 
-@app.callback(Output("selection_store", "data"),
-              [Input("show-all", "n_clicks"), Input("show-am", "n_clicks"), Input("show-pm", "n_clicks")],
-              State("selection_store", "data"), group="ok"
-              )
-def show_selection(all, am, pm, data):
+@app.callback(
+    Output("view_store", "data"),
+    [Trigger("show-all", "n_clicks"), Trigger("show-am", "n_clicks"), Trigger("show-pm", "n_clicks"),
+     Trigger("zone-picker", "value")],
+    [State("view_store", "data")]
+)
+def show_selection(data):
     trig = get_triggered()
 
-    if trig.id == "show-all":
-        data["show"] = "all"
-    elif trig.id == "show-am":
-        data["show"] = "am"
-    elif trig.id == "show-pm":
-        data["show"] = "pm"
+    if trig.id == "zone-picker":
+        data["zone"] = trig.value
+    else:
+        if trig.n_clicks is None:
+            raise PreventUpdate
+
+        if trig.id == "show-all":
+            data["show"] = "all"
+        elif trig.id == "show-am":
+            data["show"] = "am"
+        elif trig.id == "show-pm":
+            data["show"] = "pm"
 
     return data
 
@@ -503,8 +513,17 @@ def create_main_layout():
             dbc.Container([
                 dbc.Row([
                     dbc.Col([
-
-                    ], width=3),
+                        dbc.Row([
+                            dcc.Dropdown(
+                                id="zone-picker",
+                                options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
+                                value=get_chosen_gym().zones[0].id,
+                                clearable=False,
+                                style={"width": "100%"}
+                            )
+                        ], justify="start")
+                    ], width=2),
+                    dbc.Col(width=1),
                     dbc.Col([
                         html.Div([
                             dbc.Button("<", id="prev_week", color="primary"),
@@ -532,7 +551,7 @@ def create_main_layout():
                     dbc.Col([
                         html.Div([
                             dcc.Graph(
-                                figure=create_heatmap(datetime.now(), None, None, "pm"),
+                                figure=create_heatmap(datetime.now(), None, None, "pm", get_chosen_gym().zones[0].id),
                                 id="main-graph",
                                 style={"height": "70vh", "width": "100%"})
                         ], className="my-3"),
@@ -544,8 +563,10 @@ def create_main_layout():
 
 
 app.layout = html.Div([
-    dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(), "source": None, "show": "pm"}),
+    dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(),
+                                          "source": None}),
     dcc.Store(id="bookings_store", data={}),
+    dcc.Store(id="view_store", data={"show": "pm", "zone": None}),
     dcc.Location(id="location"),
     html.Div(id="redirect"),
     dbc.NavbarSimple(
@@ -580,6 +601,8 @@ if not os.path.exists(config.DB_PATH):
         role="ADMIN",
     )
 
+    g.zones.append(Zone(name="Zone 1"))
+    g.zones.append(Zone(name="Zone 2"))
     g.admins.append(admin)
     admin.gyms.append(g)
 
@@ -588,8 +611,7 @@ if not os.path.exists(config.DB_PATH):
     db.session.commit()
 
 
-
 if __name__ == '__main__':
 
     app.suppress_callback_exceptions = True
-    app.run_server(debug=False, dev_tools_ui=False)
+    app.run_server(debug=True, dev_tools_ui=False)
