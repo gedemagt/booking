@@ -16,6 +16,18 @@ def timeslot_index(d, start=None, slot_length=15):
                            start.day)).total_seconds() / 60 / slot_length)
 
 
+def as_datetime(k):
+    if isinstance(k, datetime):
+        return k
+    if isinstance(k, date):
+        return datetime(k.year, k.month, k.day)
+    else:
+        try:
+            return datetime.strptime(k, "%Y-%m-%dT%H:%M:%S")
+        except ValueError:
+            return datetime.strptime(k, "%Y-%m-%d")
+
+
 def as_date(k):
     if isinstance(k, date):
         return k

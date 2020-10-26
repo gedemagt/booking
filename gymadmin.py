@@ -1,13 +1,16 @@
+from datetime import datetime
+
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-from dash.dependencies import State, ALL
+from dash.dependencies import State, ALL, Input
 from dash.exceptions import PreventUpdate
 from dash_extensions.enrich import Trigger, Output
 from dash_extensions.snippets import get_triggered
 
 from app import app
-from models import db, User, Zone
+from models import db, User, Zone, Booking
+from time_utils import as_date, as_datetime
 from utils import get_chosen_gym
 
 
@@ -194,6 +197,56 @@ def create_gym_admin_layout():
             html.Table(
                 create_zones_list(),
                 id="zone-edit",
-            )
+            ),
+            dbc.Modal([
+                dbc.ModalHeader("Delete all bookings"),
+                dbc.ModalHeader([
+                    dbc.FormGroup([
+                        dbc.Label("After"),
+                        dcc.DatePickerSingle(
+                            id="prune-start-date",
+                            date=datetime.now().date(),
+                            min_date_allowed=datetime.now().date()
+                        ),
+                        dbc.FormText("All bookings which start after this date are deleted")
+                    ]),
+                    dbc.FormGroup([
+                        dbc.Label("Zones"),
+                        dcc.Dropdown(
+                            options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
+                            multi=True,
+                            id="prune-zones"
+                        ),
+                        dbc.FormText("If none is chose, all bookings are deleted")
+                    ])
+                ]),
+                dbc.ModalFooter(dbc.Button("Delete", color="danger", id="do-delete")),
+            ], id="prune-modal"),
+            dbc.Button("Delete all bookings", id="prune-bookings", color="danger")
         ], width=3)
     ], className="p-3")
+
+
+@app.callback(
+    Output("prune-modal", "is_open"),
+    [Input("prune-bookings", "n_clicks"), Input("do-delete", "n_clicks")],
+    [State("prune-modal", "is_open"), State("prune-zones", "value"), State("prune-start-date", "date")],
+)
+def show_modal(n1, n2, is_open, zones, start_date):
+
+    trig = get_triggered()
+    start_date = as_datetime(start_date)
+    if trig.id == "do-delete":
+
+        to_delete = Booking.query.filter(Booking.start >= start_date)
+        if zones:
+            for zone in zones:
+                to_delete = to_delete.filter_by(zone_id=zone)
+
+        for b in to_delete.all():
+            db.session.delete(b)
+        db.session.commit()
+
+    if n1 or n2:
+        is_open = not is_open
+    return is_open

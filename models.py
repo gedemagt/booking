@@ -38,7 +38,7 @@ class Booking(db.Model):
     start = db.Column(db.DateTime, nullable=False)
     end = db.Column(db.DateTime, nullable=False)
 
-    user_id = db.Column(db.Integer(), db.ForeignKey('users.id', ondelete='CASCADE'))
+    user_id = db.Column(db.Integer(), db.ForeignKey('users.id'))
     zone_id = db.Column(db.Integer(), db.ForeignKey('zones.id'), nullable=False)
 
 
@@ -76,5 +76,5 @@ class Zone(db.Model):
     # max_time_per_user_per_day = db.Column(db.Integer, nullable=True) # Number of active bookings on one day
     # max_number_per_booking = db.Column(db.Integer, nullable=False, default=1) # Number of persons per booking
 
-    bookings = db.relationship('Booking', backref=db.backref('zone', lazy=True, cascade="all,delete"))
+    bookings = db.relationship('Booking', backref=db.backref('zone', lazy=True))
 
