@@ -239,6 +239,9 @@ def create_gym_admin_layout():
 def show_modal(n1, n2, is_open, zones, start_date):
 
     trig = get_triggered()
+    if trig.id is None:
+        raise PreventUpdate
+
     start_date = as_datetime(start_date)
     txt = ""
     if trig.id == "do-delete":
@@ -255,6 +258,6 @@ def show_modal(n1, n2, is_open, zones, start_date):
         db.session.commit()
         txt = f"Deleted {len(to_delete)} bookings"
 
-    return True, txt, txt != ""
+    return trig.id in ["do-delete", "prune-bookings"], txt, txt != ""
 
 
