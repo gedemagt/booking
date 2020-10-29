@@ -34,9 +34,14 @@ fapp.config['USER_ENABLE_CONFIRM_EMAIL'] = False
 fapp.config['USER_ALLOW_LOGIN_WITHOUT_CONFIRMED_EMAIL'] = True
 fapp.config['USER_SEND_REGISTERED_EMAIL'] = False
 
-app = Dash(__name__, server=fapp, external_stylesheets=['https://pro.fontawesome.com/releases/v5.10.0/css/all.css', dbc.themes.BOOTSTRAP], title="Booking", update_title=None)
-app.suppress_callback_exceptions = True
-
+app = Dash(
+    __name__,
+    server=fapp,
+    external_stylesheets=['https://pro.fontawesome.com/releases/v5.10.0/css/all.css', dbc.themes.BOOTSTRAP],
+    title="Booking",
+    update_title=None,
+    suppress_callback_exceptions=True,
+)
 
 for view_func in fapp.view_functions:
     if view_func.startswith('/'):

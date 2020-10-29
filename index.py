@@ -81,5 +81,4 @@ def path(path):
 
 if __name__ == '__main__':
 
-    app.suppress_callback_exceptions = True
-    app.run_server(debug=True, dev_tools_ui=True)
+    app.run_server(debug=True)
