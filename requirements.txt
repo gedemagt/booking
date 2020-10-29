@@ -9,3 +9,4 @@ Flask-User
 Flask-Admin
 email_validator
 numpy
+humanize

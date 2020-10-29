@@ -18,3 +18,7 @@
 .hour-cell {
     width: 100%;
 }
+
+.modebar{
+      display: none !important;
+}
