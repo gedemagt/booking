@@ -39,6 +39,7 @@ def as_date(k):
         except ValueError:
             return datetime.strptime(k, "%Y-%m-%d").date()
 
+
 def parse(s):
     if s is None:
         return None

@@ -10,7 +10,7 @@ from dash_extensions.snippets import get_triggered
 
 from app import app
 from models import db, User, Zone, Booking
-from time_utils import as_date, as_datetime
+from time_utils import as_datetime
 from utils import get_chosen_gym
 
 

@@ -1,4 +1,3 @@
-import os
 from collections import defaultdict
 from datetime import datetime, timedelta, date
 
@@ -15,15 +14,11 @@ import plotly.graph_objects as go
 import numpy as np
 
 import config
-from admin import init_flask_admin
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
-from custom import CustomUserManager
-from gymadmin import create_gym_admin_layout
-from models import Booking, db, Gym, User, Zone
+from models import Booking, db, Gym
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin
-from app import fapp
 
 
 def parse_heatmap_click(data):
@@ -167,44 +162,6 @@ def on_new_gym(n, gym_code):
             return "/", "", False
 
     return "/", "Gym not found", n is not None
-
-
-@app.callback(
-    [Output("layout", "children"), Output("navbar", "children"), Output("navbar", "brand")],
-    [Input("location", "pathname")], group="view"
-)
-def path(path):
-
-    navbar_items = [
-        dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
-    ]
-
-    if len(current_user.gyms) == 0:
-        layout = dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    html.H3("Please enter gym code", className="my-3"),
-                    dbc.InputGroup([dbc.Input(id="gym_code")], className="mb-2"),
-                    dbc.Button("OK", id="add_gym", color="primary", className="mb-2"),
-                    dbc.Alert(id="gym-err", is_open=False, color="danger")
-                ], width=4)
-            ], justify="around"),
-            dbc.Row([
-
-            ])
-        ], fluid=True)
-        txt = f"{current_user.username}"
-    else:
-        if is_admin():
-            navbar_items.insert(0, dbc.NavItem(html.A(html.Button("Gym", className="btn btn-primary"), href="/gym_admin")))
-
-        if path and path.endswith("gym_admin"):
-            layout = create_gym_admin_layout()
-        else:
-            layout = create_main_layout()
-
-        txt = f"{get_chosen_gym().name}"
-    return layout, navbar_items, txt
 
 
 def create_heatmap(d, f, t, yrange, zone):
@@ -562,56 +519,4 @@ def create_main_layout():
     ], className="p-3")
 
 
-app.layout = html.Div([
-    dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(),
-                                          "source": None}),
-    dcc.Store(id="bookings_store", data={}),
-    dcc.Store(id="view_store", data={"show": "pm", "zone": None}),
-    dcc.Location(id="location"),
-    html.Div(id="redirect"),
-    dbc.NavbarSimple(
-        children=[],
-        brand="Booking",
-        brand_href="/",
-        color="primary",
-        dark=True,
-        id="navbar"
-    ),
-    dbc.Container(html.Div(id="layout"), fluid=True)
-])
 
-init_flask_admin()
-
-user_manager = CustomUserManager(fapp, db, UserClass=User)
-
-
-if not os.path.exists(config.DB_PATH):
-    print("Initializing database")
-
-    db.create_all()
-
-    g = Gym(name="TestGym", code="TestGym")
-
-    admin = User(
-        active=True,
-        username="admin",
-        email_confirmed_at=datetime.now(),
-        email=os.getenv("ADMIN_EMAIL", "gedemagt+bookingadmin@gmail.com"),
-        password=user_manager.password_manager.hash_password(os.getenv("ADMIN_PASS", "changeme")),
-        role="ADMIN",
-    )
-
-    g.zones.append(Zone(name="Zone 1"))
-    g.zones.append(Zone(name="Zone 2"))
-    g.admins.append(admin)
-    admin.gyms.append(g)
-
-    db.session.add(g)
-    db.session.add(admin)
-    db.session.commit()
-
-
-if __name__ == '__main__':
-
-    app.suppress_callback_exceptions = True
-    app.run_server(debug=True, dev_tools_ui=False)
