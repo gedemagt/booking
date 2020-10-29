@@ -97,18 +97,17 @@ def create_daily_booking_map(d, zone_id=None):
 
 def create_weekly_booking_map(d, zone):
     week_start_day = start_of_week(d)
+    week_end = week_start_day + timedelta(days=7)
 
     all_bookings = np.zeros(24 * 4 * 7)
     my_bookings = np.zeros(24 * 4 * 7)
 
     for b in Booking.query.filter(Booking.start >= week_start_day).filter(
-            Booking.end <= week_start_day + timedelta(days=8)).filter_by(zone_id=zone).all():
-        start = (b.start - datetime(week_start_day.year, week_start_day.month,
-                                    week_start_day.day)).total_seconds() / 60 / 15
-        end = (b.end - datetime(week_start_day.year, week_start_day.month,
-                                week_start_day.day)).total_seconds() / 60 / 15
+            Booking.end <= week_end).filter_by(zone_id=zone).all():
+        start = timeslot_index(b.start, week_start_day)
+        end = timeslot_index(b.end, week_start_day)
 
-        start_end_array = create_from_to(int(start), int(end)) * b.number
+        start_end_array = create_from_to(start, end) * b.number
 
         all_bookings += start_end_array
 

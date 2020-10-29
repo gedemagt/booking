@@ -30,6 +30,9 @@ class User(db.Model, UserMixin):
 
     bookings = db.relationship('Booking', backref=db.backref('user', lazy=True))
 
+    def __eq__(self, other):
+        return self.id == other.id
+
 
 class Booking(db.Model):
     __tablename__ = 'bookings'
