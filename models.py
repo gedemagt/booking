@@ -65,6 +65,15 @@ class Gym(db.Model):
 
     zones = db.relationship('Zone', backref=db.backref('gym', lazy=True))
 
+    def get_max_people(self, zone_id):
+        try:
+            r = next(x for x in self.zones if x.id == zone_id).max_people
+            if r is None:
+                return self.max_people
+            return r
+        except StopIteration:
+            return self.max_people
+
 
 class Zone(db.Model):
     __tablename__ = 'zones'

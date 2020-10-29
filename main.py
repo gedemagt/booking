@@ -234,7 +234,7 @@ def create_heatmap(d, f, t, yrange, zone):
     z = np.flipud(np.reshape(all_bookings, (7, 24 * 4)).transpose())
     hover = np.flipud(np.reshape(hover, (7, 24 * 4)).transpose())
 
-    _max = get_chosen_gym().max_people
+    _max = get_chosen_gym().get_max_people(zone)
     _close = _max - config.CLOSE
     l = _max + 5
 
