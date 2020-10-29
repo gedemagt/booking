@@ -68,7 +68,7 @@ def path(path):
         txt = f"{current_user.username}"
     else:
         if is_admin():
-            navbar_items.insert(0, dbc.NavItem(html.A(html.Button("Gym", className="btn btn-primary"), href="/gym_admin")))
+            navbar_items.insert(0, dbc.NavItem(dcc.Link("Gym", className="btn btn-primary", href="/gym_admin")))
 
         if path and path.endswith("gym_admin"):
             layout = create_gym_admin_layout()
