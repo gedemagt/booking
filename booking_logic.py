@@ -23,10 +23,10 @@ def create_daily_from_to(f, t):
     return new_booking
 
 
-def validate_booking(start, end, number, zone):
+def validate_booking(start, end, number, zone_id):
 
     gym = get_chosen_gym()
-    zone = Zone.query.filter_by(id=zone).first()
+    zone = Zone.query.filter_by(id=zone_id).first()
 
     # First we check general stuff
     if start.date() != end.date():
@@ -36,7 +36,7 @@ def validate_booking(start, end, number, zone):
         raise AssertionError("Start must come before end")
 
     # Then we check capacity
-    all_bookings, zone_bookings = create_daily_booking_map(start)
+    all_bookings, zone_bookings = create_daily_booking_map(start, zone_id)
 
     start_end_array = create_daily_from_to(timeslot_index(start), timeslot_index(end)) * number
     if zone.max_people and np.any((all_bookings + start_end_array) > zone.max_people):
@@ -81,7 +81,7 @@ def create_daily_booking_map(d, zone_id=None):
     all_bookings = np.zeros(24 * 4)
     zone_bookings = np.zeros(24 * 4)
 
-    for b in Booking.query.filter(Booking.start >= day).filter(Booking.end <= day + timedelta(days=1)).all():
+    for b in Booking.query.filter(Booking.start >= day).filter(Booking.end <= day + timedelta(days=1)).filter_by(zone_id=zone_id).all():
         start = (b.start - day).total_seconds() / 60 / 15
         end = (b.end - day).total_seconds() / 60 / 15
 
