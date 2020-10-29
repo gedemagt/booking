@@ -486,7 +486,7 @@ def create_main_layout():
                             dbc.Button("<", id="prev_week", color="primary"),
                             html.Span([
                                 html.Span("Week", className="ml-3 mr-1"),
-                                html.Span(id="week", className="mr-3 ml-1"),
+                                html.Span(datetime.now().isocalendar()[1], id="week", className="mr-3 ml-1"),
                             ]),
                             dbc.Button(">", id="next_week", color="primary")
                         ], style={"text-align": "center"})
