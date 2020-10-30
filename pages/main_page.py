@@ -437,7 +437,7 @@ def create_main_layout():
                                             id="date-picker",
                                             date=datetime.now().date(),
                                             min_date_allowed=datetime.now().date(),
-                                            display_format="DD-MM-YYYY"
+                                            display_format="DD-MM-YYYY",
                                         )
                                     ], style={"width": "50px"}),
                                     html.Td(),
@@ -453,7 +453,8 @@ def create_main_layout():
                                         dcc.Dropdown(
                                             id="from-drop-down",
                                             value=4 * 8,
-                                            options=OPTIONS[:-1]
+                                            options=OPTIONS[:-1],
+                                            searchable=False,
                                         )
                                     ], style={"width": "50px"}),
                                     html.Td([
@@ -462,7 +463,8 @@ def create_main_layout():
                                     html.Td([
                                         dcc.Dropdown(
                                             id="to-drop-down",
-                                            options=OPTIONS[:-1]
+                                            options=OPTIONS[:-1],
+                                            searchable=False,
                                         )
                                     ], style={"width": "50px"})
                                 ]),
@@ -492,17 +494,24 @@ def create_main_layout():
             dbc.Container([
                 dbc.Row([
                     dbc.Col([
-                        dbc.Row([
-                            dcc.Dropdown(
-                                id="zone-picker",
-                                options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
-                                value=get_chosen_gym().zones[0].id,
-                                clearable=False,
-                                style={"width": "100%"}
-                            )
-                        ], justify="start")
-                    ], width=2),
-                    dbc.Col(width=1),
+                        dcc.Dropdown(
+                            id="zone-picker",
+                            options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
+                            value=get_chosen_gym().zones[0].id,
+                            clearable=False,
+                            searchable=False,
+                            style={"width": "100%"}
+                        )
+                    ], width=8, sm=4),
+                    dbc.Col([
+                        dbc.DropdownMenu([
+                            dbc.DropdownMenuItem("24h", id="show-all"),
+                            dbc.DropdownMenuItem("AM", id="show-am"),
+                            dbc.DropdownMenuItem("PM", id="show-pm")
+                        ], label="\u231A", color="primary")
+                    ], width=4, sm=8, style={"text-align": "right"})
+                ], justify="between", className="my-3"),
+                dbc.Row([
                     dbc.Col([
                         html.Div([
                             dbc.Button("<", id="prev_week", color="primary"),
@@ -512,20 +521,8 @@ def create_main_layout():
                             ]),
                             dbc.Button(">", id="next_week", color="primary")
                         ], style={"text-align": "center"})
-                    ], width=6),
-                    dbc.Col([
-                        dbc.Row(
-                            dbc.ButtonGroup(
-                                [
-                                    dbc.Button("24H", id="show-all", color="secondary"),
-                                    dbc.Button("AM", id="show-am", color="secondary"),
-                                    dbc.Button("PM", id="show-pm", color="secondary")
-                                ]
-                            ),
-                            justify="end"
-                        )
-                    ], width=3)
-                ], justify="between", className="my-3 mr-2"),
+                    ], width=12)
+                ], justify="between", className="my-3"),
                 dbc.Row([
                     dbc.Col([
                         html.Div([

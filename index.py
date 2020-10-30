@@ -23,6 +23,7 @@ try_init_db(user_manager)
 
 
 app.layout = html.Div([
+    html.Meta(name="viewport", content="width=device-width, initial-scale=1"),
     dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(),
                                           "source": None}),
     dcc.Store(id="bookings_store", data={}),
@@ -81,4 +82,4 @@ def path(path):
 
 if __name__ == '__main__':
 
-    app.run_server(debug=True)
+    app.run_server(host="0.0.0.0", debug=True, dev_tools_ui=False)
