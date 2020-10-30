@@ -21,6 +21,13 @@ from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_da
 from utils import get_chosen_gym, is_admin
 
 
+BOOTSTRAP_BLUE = "#0275d8"
+BOOTSTRAP_GREEN = "#5cb85c"
+BOOTSTRAP_LIGHT_BLUE = "#5bc0de"
+BOOTSTRAP_YELLOW = "#f0ad4e"
+BOOTSTRAP_RED = "#d9534f"
+
+
 def parse_heatmap_click(data):
     return datetime.strptime(data["points"][0]["x"].split(" ")[0] + " " + data["points"][0]["y"], "%Y-%m-%d %H:%M")
 
@@ -30,7 +37,8 @@ def parse_heatmap_click(data):
     [Input("bookings_store", "data"), Input("selection_store", "data"), Input("view_store", "data")], group="redraw")
 def redraw_all(data1, data, view_data):
     d = parse(data["d"])
-    return create_bookings(), create_heatmap(d, parse(data["f"]), parse(data["t"]), view_data["show"], view_data["zone"])
+    return create_bookings(), create_heatmap(d, parse(data["f"]), parse(data["t"]), view_data["show"],
+                                             view_data["zone"])
 
 
 @app.callback(
@@ -131,7 +139,8 @@ def create_bookings():
                     html.Td(b.end.strftime("%H:%M"), style={"text-align": "left"}),
                     html.Td(b.zone.name, style={"text-align": "left"}),
                     html.Td(b.number, style={"text-align": "left"}),
-                    html.Td(dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id), color="danger"))
+                    html.Td(dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
+                                       color="danger"))
                 ]),
             )
     return dbc.Table(result, style={"width": "100%"})
@@ -196,11 +205,11 @@ def create_heatmap(d, f, t, yrange, zone):
     l = _max + 5
 
     if yrange == "am":
-        y_range = [12*4, 24*4]
+        y_range = [12 * 4, 24 * 4]
     elif yrange == "pm":
-        y_range = [0*4, 12*4]
+        y_range = [0 * 4, 12 * 4]
     else:
-        y_range = [0, 24*4]
+        y_range = [0, 24 * 4]
 
     fig = go.Figure(
         layout=go.Layout(
@@ -215,7 +224,7 @@ def create_heatmap(d, f, t, yrange, zone):
             x=x,
             y=y,
             text=hover,
-            hovertemplate="%{y}: %{text}",
+            hovertemplate="%{y}: %{text}/" + str(_max),
             hoverongaps=False,
             zmin=-5,
             zmax=_max,
@@ -224,11 +233,11 @@ def create_heatmap(d, f, t, yrange, zone):
             ygap=0.1,
             colorscale=[
                 (0.0, "grey"), (1 / l, "grey"),
-                (1 / l, "yellow"), (2 / l, "yellow"),
-                (2 / l, "green"), (5 / l, "green"),
-                (5 / l, "blue"), ((_close + 5) / l, "blue"),
-                ((_close + 5) / l, "orange"), (0.99, "orange"),
-                (0.99, "red"), (1.0, "red")
+                (1 / l, BOOTSTRAP_LIGHT_BLUE), (2 / l, BOOTSTRAP_LIGHT_BLUE),
+                (2 / l, BOOTSTRAP_GREEN), (5 / l, BOOTSTRAP_GREEN),
+                (5 / l, BOOTSTRAP_BLUE), ((_close + 5) / l, BOOTSTRAP_BLUE),
+                ((_close + 5) / l, BOOTSTRAP_YELLOW), (0.99, BOOTSTRAP_YELLOW),
+                (0.99, BOOTSTRAP_RED), (1.0, BOOTSTRAP_RED)
             ]
         )
     )
@@ -290,6 +299,11 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
             f = parse(data["f"])
             data["f"] = min(f, picked_date)
             data["t"] = max(f, picked_date)
+
+            max_dt = timedelta(minutes=15 * get_chosen_gym().max_booking_length)
+            if data["t"] - data["f"] > max_dt:
+                data["t"] = data["f"] + max_dt
+
         data["source"] = "graph"
     else:
         if trig.id == "from-drop-down":
@@ -316,44 +330,51 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
     [Output("from-drop-down", "options"), Output("from-drop-down", "value"), Output("to-drop-down", "options"),
      Output("to-drop-down", "value"), Output("date-picker", "date")],
     [Input("selection_store", "data")],
-    [State("from-drop-down", "options"), State("from-drop-down", "value"), State("to-drop-down", "options"),
-     State("to-drop-down", "value"), State("date-picker", "date")]
+    [State("from-drop-down", "value"), State("to-drop-down", "value"),
+     State("date-picker", "date")]
 )
-def update_inputs(data, prev_from_options, prev_from, prev_to_options, prev_to, prev_date):
+def update_inputs(data, prev_from, prev_to, prev_date):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
 
     from_value = None
     to_value = None
-    options = prev_to_options
 
-    date = prev_date
+    day = prev_date
 
     if data.get("source", "") == "graph":
-        date = start_of_day(datetime.now())
+        day = start_of_day(datetime.now())
         if data["f"] is not None:
             d = parse(data["f"])
-            date = start_of_day(d)
-            from_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
+            day = start_of_day(d)
+            from_value = timeslot_index(d)
         if data["t"] is not None:
             d = parse(data["t"])
-            to_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
-        date = date.date()
-        options = OPTIONS[from_value + 1:] if from_value else OPTIONS[1:]
+            to_value = timeslot_index(d)
+        day = day.date()
     elif data.get("source", "") == "input":
+
         from_value = prev_from if data["f"] is not None else None
-        options = prev_to_options if data["f"] is None else OPTIONS[int((parse(data["f"]) - start_of_day(parse(data["f"]))).total_seconds() / 60 / 15) + 1:]
         to_value = prev_to if data["t"] is not None else None
 
-    if as_date(date) == datetime.now().date():
-        prev_from_options = OPTIONS[timeslot_index(datetime.now())+1:]
-        if from_value is None:
-            options = OPTIONS[timeslot_index(datetime.now())+2:]
-    else:
-        prev_from_options = OPTIONS
+    from_min_index = timeslot_index(datetime.now()) + 1 if as_date(day) == datetime.now().date() else 0
+    from_max_index = len(OPTIONS) - 1
 
-    return prev_from_options, from_value, options, to_value, date
+    if from_value is not None:
+        to_min_index = from_value + 1
+        to_max_index = from_value + 1 + get_chosen_gym().max_booking_length if not is_admin() else len(OPTIONS) - 1
+    else:
+        to_min_index = from_min_index + 1
+        to_max_index = len(OPTIONS) - 1
+
+    if from_value is not None:
+        from_value = from_value
+
+    if to_value is not None:
+        to_value = to_value
+
+    return OPTIONS[from_min_index:from_max_index], from_value, OPTIONS[to_min_index:to_max_index], to_value, day
 
 
 @app.callback(
@@ -447,7 +468,8 @@ def create_main_layout():
                                 ]),
                             ]),
                             dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
-                            html.Div(dbc.Alert("Empty", id="msg2", is_open=True, className="mt-3 mb-0"), id="msg2-container", style={"visibility": "hidden"})
+                            html.Div(dbc.Alert("Empty", id="msg2", is_open=True, className="mt-3 mb-0"),
+                                     id="msg2-container", style={"visibility": "hidden"})
                         ]),
                         dbc.CardFooter([
                             dbc.Row([dbc.Button("Book", id="book", color="primary")], justify="end")
@@ -517,6 +539,3 @@ def create_main_layout():
             ], fluid=True)
         ], width=12, lg=7),
     ], className="p-3")
-
-
-
