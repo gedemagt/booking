@@ -306,6 +306,7 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
 
         data["source"] = "graph"
     else:
+
         if trig.id == "from-drop-down":
             if prev_from is None:
                 data["f"] = None
@@ -402,8 +403,30 @@ def show_selection(data):
     return data
 
 
+app.clientside_callback(
+    """
+    function placeholder(date) {
+        document.getElementById("date").setAttribute("readonly", "readonly");
+        return [screen.width];
+    }
+    """,
+    [Output("dummy", "children")],
+    [Input("date-picker", "date")]
+)
+
+
+@app.callback(
+    Output("date-picker", "with_full_screen_portal"),
+    Input("dummy", "children")
+)
+def on_screen_width(s):
+    screen_width = int(s)
+    return screen_width < 768
+
+
 def create_main_layout():
     return dbc.Row([
+        html.Div(id="dummy", hidden=True),
         dbc.Col([
             dbc.Row([
                 dbc.Col([
@@ -411,64 +434,63 @@ def create_main_layout():
                     dbc.Card([
                         dbc.CardHeader("New booking"),
                         dbc.CardBody([
-                            html.Table([
-                                html.Tr([
-                                    html.Td([
-                                        html.Span(html.I(className="fa fa-user-friends"))
-                                    ], style={"width": "50px"}),
-                                    html.Td([
-                                        html.Div(
-                                            dbc.Input(
-                                                value=1,
-                                                id="nr_bookings",
-                                                type="number",
-                                                min=1,
-                                                max=get_chosen_gym().max_number_per_booking if not is_admin() else get_chosen_gym().max_people
-                                            )
-                                        )
-                                    ], style={"width": "50px"}),
-                                ]),
-                                html.Tr([
-                                    html.Td([
-                                        "Day"
-                                    ], style={"width": "50px"}),
-                                    html.Td([
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Span(html.I(className="fa fa-user-friends"))
+                                ], width=3),
+                                dbc.Col([
+                                    dbc.Input(
+                                        value=1,
+                                        id="nr_bookings",
+                                        type="number",
+                                        min=1,
+                                        max=get_chosen_gym().max_number_per_booking if not is_admin() else get_chosen_gym().max_people
+                                    )
+                                ], width=9)
+                            ], justify="between"),
+                            dbc.Row([
+                                dbc.Col([
+                                    "Day"
+                                ], width=3),
+                                dbc.Col([
+                                    html.Div([
                                         dcc.DatePickerSingle(
                                             id="date-picker",
                                             date=datetime.now().date(),
                                             min_date_allowed=datetime.now().date(),
                                             display_format="DD-MM-YYYY",
+                                            clearable=False
                                         )
-                                    ], style={"width": "50px"}),
-                                    html.Td(),
-                                    html.Td([
-                                        html.Div(dcc.DatePickerSingle(id="dummy"), style={"visibility": "hidden"})
                                     ])
-                                ]),
-                                html.Tr([
-                                    html.Td([
-                                        "Time"
-                                    ], style={"width": "50px"}),
-                                    html.Td([
-                                        dcc.Dropdown(
-                                            id="from-drop-down",
-                                            value=4 * 8,
-                                            options=OPTIONS[:-1],
-                                            searchable=False,
-                                        )
-                                    ], style={"width": "50px"}),
-                                    html.Td([
-                                        html.Div("-", className="text-center")
-                                    ], style={"width": "50px"}),
-                                    html.Td([
-                                        dcc.Dropdown(
-                                            id="to-drop-down",
-                                            options=OPTIONS[:-1],
-                                            searchable=False,
-                                        )
-                                    ], style={"width": "50px"})
-                                ]),
-                            ]),
+                                ], width=9)
+                            ], justify="between"),
+                            dbc.Row([
+                                dbc.Col([
+                                    "Time"
+                                ], width=3),
+                                dbc.Col([
+                                    dbc.Row([
+                                        dbc.Col([
+                                            dcc.Dropdown(
+                                                id="from-drop-down",
+                                                value=4 * 8,
+                                                options=OPTIONS[:-1],
+                                                searchable=False,
+                                            )
+                                        ], width=12, sm=5),
+                                        dbc.Col([
+                                            html.Div("-", style={"text-align": "center", "margin": "auto"})
+                                        ], width=0, sm=2),
+                                        dbc.Col([
+                                            dcc.Dropdown(
+                                                id="to-drop-down",
+                                                options=OPTIONS[:-1],
+                                                searchable=False,
+                                            )
+                                        ], width=12, sm=5)
+                                    ])
+                                ], width=9)
+                            ], justify="between"),
                             dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
                             html.Div(dbc.Alert("Empty", id="msg2", is_open=True, className="mt-3 mb-0"),
                                      id="msg2-container", style={"visibility": "hidden"})
