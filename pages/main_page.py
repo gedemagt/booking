@@ -126,24 +126,37 @@ def create_bookings():
     result = []
     for d in sorted(k.keys()):
         result.append(
-            html.Tr([
-                html.Td(d.strftime("%d %b %Y"), style={"background-color": "lightgrey"}, colSpan=4),
-                html.Td("#", style={"background-color": "lightgrey"}, colSpan=2),
-            ])
+            dbc.Row([
+                dbc.Col(d.strftime("%d %b %Y"), width=7),
+                dbc.Col("#", width=2)
+            ], style={"background-color": "lightgrey"})
         )
+
         for b in k[d]:
             result.append(
-                html.Tr([
-                    html.Td(b.start.strftime("%H:%M"), style={"text-align": "left"}),
-                    html.Td("-", style={"text-align": "left"}),
-                    html.Td(b.end.strftime("%H:%M"), style={"text-align": "left"}),
-                    html.Td(b.zone.name, style={"text-align": "left"}),
-                    html.Td(b.number, style={"text-align": "left"}),
-                    html.Td(dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
-                                       color="danger"))
-                ]),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Row([
+                            dbc.Col([
+                                f'{b.start.strftime("%H:%M")} - {b.end.strftime("%H:%M")}',
+                            ], width=12),
+                            dbc.Col([
+                                b.zone.name,
+                            ], width=12),
+                        ])
+                    ], width=7),
+                    dbc.Col([
+                        b.number,
+                    ], width=2),
+                    dbc.Col([
+                        dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
+                                   color="danger")
+                    ], width=2)
+                ], className="my-1")
             )
-    return dbc.Table(result, style={"width": "100%"})
+            result.append(html.Hr())
+
+    return dbc.Container(dbc.Table(result, style={"width": "100%"}))
 
 
 @app.callback(
@@ -262,20 +275,17 @@ OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15 * x)).strftime("%
 
 
 @app.callback(
-    [Output("msg2", "children"), Output("msg2", "color"),
-     Output("msg2-container", "style"), Output("book", "disabled")],
+    [Output("msg2", "children"), Output("msg2", "color"), Output("msg2", "is_open"), Output("book", "disabled")],
     [Input("selection_store", "data")],
     [State("nr_bookings", "value"), State("view_store", "data")]
 )
 def val_booking(data, nr, view_data):
-    style = {"visibility": "hidden"}
     if data["f"] is not None and data["t"] is not None:
         try:
             validate_booking(parse(data["f"]), parse(data["t"]), int(nr), view_data["zone"])
         except AssertionError as e:
-            style = {"visibility": "visible"}
-            return str(e), "danger", style, True
-    return "Empty", "success", style, False
+            return str(e), "danger", True, True
+    return "Empty", "success", False, False
 
 
 @app.callback(
@@ -436,8 +446,23 @@ def create_main_layout():
                         dbc.CardBody([
                             dbc.Row([
                                 dbc.Col([
+                                    html.Span("Zone")
+                                ], width=3, style={"margin": "auto"}),
+                                dbc.Col([
+                                    dcc.Dropdown(
+                                        id="zone-picker",
+                                        options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
+                                        value=get_chosen_gym().zones[0].id,
+                                        clearable=False,
+                                        searchable=False,
+                                        style={"width": "100%"}
+                                    )
+                                ], width=9)
+                            ], justify="between", className="my-1"),
+                            dbc.Row([
+                                dbc.Col([
                                     html.Span(html.I(className="fa fa-user-friends"))
-                                ], width=3),
+                                ], width=3, style={"margin": "auto"}),
                                 dbc.Col([
                                     dbc.Input(
                                         value=1,
@@ -447,11 +472,11 @@ def create_main_layout():
                                         max=get_chosen_gym().max_number_per_booking if not is_admin() else get_chosen_gym().max_people
                                     )
                                 ], width=9)
-                            ], justify="between"),
+                            ], justify="between", className="my-1"),
                             dbc.Row([
                                 dbc.Col([
-                                    "Day"
-                                ], width=3),
+                                    html.Span("Day")
+                                ], width=3, style={"margin": "auto"}),
                                 dbc.Col([
                                     html.Div([
                                         dcc.DatePickerSingle(
@@ -463,11 +488,11 @@ def create_main_layout():
                                         )
                                     ])
                                 ], width=9)
-                            ], justify="between"),
+                            ], justify="between", className="my-1"),
                             dbc.Row([
                                 dbc.Col([
-                                    "Time"
-                                ], width=3),
+                                    html.Span("Time")
+                                ], width=3, style={"margin": "auto"}),
                                 dbc.Col([
                                     dbc.Row([
                                         dbc.Col([
@@ -490,10 +515,9 @@ def create_main_layout():
                                         ], width=12, sm=5)
                                     ])
                                 ], width=9)
-                            ], justify="between"),
+                            ], justify="between", className="my-1"),
                             dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
-                            html.Div(dbc.Alert("Empty", id="msg2", is_open=True, className="mt-3 mb-0"),
-                                     id="msg2-container", style={"visibility": "hidden"})
+                            dbc.Alert("Empty", id="msg2", is_open=False, className="mt-3 mb-0"),
                         ]),
                         dbc.CardFooter([
                             dbc.Row([dbc.Button("Book", id="book", color="primary")], justify="end")
@@ -516,14 +540,7 @@ def create_main_layout():
             dbc.Container([
                 dbc.Row([
                     dbc.Col([
-                        dcc.Dropdown(
-                            id="zone-picker",
-                            options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
-                            value=get_chosen_gym().zones[0].id,
-                            clearable=False,
-                            searchable=False,
-                            style={"width": "100%"}
-                        )
+
                     ], width=8, sm=4),
                     dbc.Col([
                         dbc.DropdownMenu([
