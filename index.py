@@ -2,6 +2,7 @@ from flask_login import current_user
 
 from app import app, fapp
 from models import try_init_db, db, User
+from pages.admin_page import create_admin_layout
 from pages.gym_page import create_gym_admin_layout
 from pages.main_page import create_main_layout
 from plugins.admin import init_flask_admin
@@ -52,6 +53,9 @@ def path(path):
         dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
     ]
 
+    if current_user.role == "ADMIN":
+        navbar_items.insert(0, dbc.NavItem(dcc.Link(html.I(className="fa fa-cog"), className="btn btn-primary", href="/superadmin")))
+
     if len(current_user.gyms) == 0:
         layout = dbc.Container([
             dbc.Row([
@@ -71,8 +75,10 @@ def path(path):
         if is_admin():
             navbar_items.insert(0, dbc.NavItem(dcc.Link(html.I(className="fa fa-cogs"), className="btn btn-primary", href="/gym_admin")))
 
-        if path and path.endswith("gym_admin"):
+        if path and path.endswith("gym_admin") and is_admin():
             layout = create_gym_admin_layout()
+        elif path and path.endswith("superadmin") and current_user.role == "ADMIN":
+            layout = create_admin_layout()
         else:
             layout = create_main_layout()
 
