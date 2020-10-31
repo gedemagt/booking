@@ -31,6 +31,8 @@ BOOTSTRAP_RED = "#d9534f"
 def parse_heatmap_click(data):
     return datetime.strptime(data["points"][0]["x"].split(" ")[0] + " " + data["points"][0]["y"], "%Y-%m-%d %H:%M")
 
+def get_max_booking_length():
+    return get_chosen_gym().max_booking_length if get_chosen_gym().max_booking_length is not None else 24*4
 
 @app.callback(
     [Output("my-bookings", "children"), Output("main-graph", "figure")],
@@ -310,7 +312,7 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
             data["f"] = min(f, picked_date)
             data["t"] = max(f, picked_date)
 
-            max_dt = timedelta(minutes=15 * get_chosen_gym().max_booking_length)
+            max_dt = timedelta(minutes=15 * get_max_booking_length())
             if data["t"] - data["f"] > max_dt:
                 data["t"] = data["f"] + max_dt
 
@@ -374,7 +376,7 @@ def update_inputs(data, prev_from, prev_to, prev_date):
 
     if from_value is not None:
         to_min_index = from_value + 1
-        to_max_index = from_value + 1 + get_chosen_gym().max_booking_length if not is_admin() else len(OPTIONS) - 1
+        to_max_index = from_value + 1 + get_max_booking_length() if not is_admin() else len(OPTIONS) - 1
     else:
         to_min_index = from_min_index + 1
         to_max_index = len(OPTIONS) - 1
