@@ -436,7 +436,7 @@ def on_screen_width(s):
     return screen_width < 768
 
 
-def create_main_layout():
+def create_main_layout(gym):
     return dbc.Row([
         html.Div(id="dummy", hidden=True),
         dbc.Col([
@@ -446,21 +446,24 @@ def create_main_layout():
                     dbc.Card([
                         dbc.CardHeader("New booking"),
                         dbc.CardBody([
-                            dbc.Row([
-                                dbc.Col([
-                                    html.Span("Zone")
-                                ], width=3, style={"margin": "auto"}),
-                                dbc.Col([
-                                    dcc.Dropdown(
-                                        id="zone-picker",
-                                        options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
-                                        value=get_chosen_gym().zones[0].id,
-                                        clearable=False,
-                                        searchable=False,
-                                        style={"width": "100%"}
-                                    )
-                                ], width=9)
-                            ], justify="between", className="my-1"),
+                            html.Div(
+                                dbc.Row([
+                                    dbc.Col([
+                                        html.Span("Zone")
+                                    ], width=3, style={"margin": "auto"}),
+                                    dbc.Col([
+                                        dcc.Dropdown(
+                                            id="zone-picker",
+                                            options=[{"label": x.name, "value": x.id} for x in gym.zones],
+                                            value=gym.zones[0].id,
+                                            clearable=False,
+                                            searchable=False,
+                                            style={"width": "100%"}
+                                        )
+                                    ], width=9)
+                                ], justify="between", className="my-1"),
+                                hidden=len(gym.zones) == 1
+                            ),
                             dbc.Row([
                                 dbc.Col([
                                     html.Span(html.I(className="fa fa-user-friends"))

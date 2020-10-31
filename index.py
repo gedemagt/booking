@@ -80,7 +80,7 @@ def path(path):
         elif path and path.endswith("superadmin") and current_user.role == "ADMIN":
             layout = create_admin_layout()
         else:
-            layout = create_main_layout()
+            layout = create_main_layout(get_chosen_gym())
 
         txt = f"{get_chosen_gym().name}"
     return layout, navbar_items, txt
