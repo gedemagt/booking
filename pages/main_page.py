@@ -189,7 +189,7 @@ def toggle_popover(n, is_open):
 def create_heatmap(d, f, t, yrange, zone_id):
     zone = Zone.query.filter_by(id=zone_id).first()
     week_start_day = start_of_week(d)
-    week_end_day = week_start_day + timedelta(days=8)
+    week_end_day = week_start_day + timedelta(days=7)
 
     all_bookings, my_bookings = create_weekly_booking_map(d, zone_id)
     hover = all_bookings.copy()
@@ -199,9 +199,10 @@ def create_heatmap(d, f, t, yrange, zone_id):
     y = list(reversed([(start + timedelta(minutes=15 * k)).strftime("%H:%M") for k in range(24 * 4)]))
 
     all_bookings[my_bookings > 0] = -3
+    if f and week_start_day <= f < week_end_day:
 
-    if f and week_start_day <= f <= week_end_day:
         start_idx = timeslot_index(f, week_start_day)
+
         all_bookings[start_idx] = -3.5
         if t:
             end_idx = timeslot_index(t, week_start_day)
