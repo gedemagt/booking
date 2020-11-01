@@ -122,6 +122,10 @@ def create_gym_admin_layout():
         dbc.Col([
             dbc.Label("Gym settings", size="lg"),
             dbc.FormGroup([
+                dbc.FormGroup([
+                    dbc.Label("Gym code: ", size="lg", style={"font-weight": "bold"}),
+                    dbc.Label(gym.code, className="mx-3"),
+                ]),
                 dbc.FormGroup(
                     [
                         dbc.Label("Max number of persons", html_for="max_persons"),

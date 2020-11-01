@@ -16,7 +16,7 @@ import numpy as np
 import config
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
-from models import Booking, db, Gym
+from models import Booking, db
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin
 
