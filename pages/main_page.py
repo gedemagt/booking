@@ -31,8 +31,10 @@ BOOTSTRAP_RED = "#d9534f"
 def parse_heatmap_click(data):
     return datetime.strptime(data["points"][0]["x"].split(" ")[0] + " " + data["points"][0]["y"], "%Y-%m-%d %H:%M")
 
+
 def get_max_booking_length():
     return get_chosen_gym().max_booking_length if get_chosen_gym().max_booking_length is not None else 24*4
+
 
 @app.callback(
     [Output("my-bookings", "children"), Output("main-graph", "figure")],
@@ -170,22 +172,6 @@ def toggle_popover(n, is_open):
     if n:
         return not is_open
     return is_open
-
-
-@app.callback(
-    [Output("location", "pathname"), Output("gym-err", "children"), Output("gym-err", "is_open")],
-    [Input("add_gym", "n_clicks")],
-    [State("gym_code", "value")]
-)
-def on_new_gym(n, gym_code):
-    if gym_code is not None:
-        g = db.session.query(Gym).filter_by(code=gym_code).first()
-        if g:
-            current_user.gyms.append(g)
-            db.session.commit()
-            return "/", "", False
-
-    return "/", "Gym not found", n is not None
 
 
 def create_heatmap(d, f, t, yrange, zone):
@@ -474,7 +460,7 @@ def create_main_layout(gym):
                                         id="nr_bookings",
                                         type="number",
                                         min=1,
-                                        max=get_chosen_gym().max_number_per_booking if not is_admin() else get_chosen_gym().max_people
+                                        max=gym.max_number_per_booking if not is_admin() else gym.max_people
                                     )
                                 ], width=9)
                             ], justify="between", className="my-1"),
@@ -571,7 +557,7 @@ def create_main_layout(gym):
                     dbc.Col([
                         html.Div([
                             dcc.Graph(
-                                figure=create_heatmap(datetime.now(), None, None, "pm", get_chosen_gym().zones[0].id),
+                                figure=create_heatmap(datetime.now(), None, None, "pm", gym.zones[0].id),
                                 id="main-graph",
                                 style={"height": "70vh", "width": "100%"})
                         ], className="my-3"),

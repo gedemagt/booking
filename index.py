@@ -3,6 +3,7 @@ from flask_login import current_user
 from app import app, fapp
 from models import try_init_db, db, User
 from pages.admin_page import create_admin_layout
+from pages.enter_gym_page import create_enter_gym_layout
 from pages.gym_page import create_gym_admin_layout
 from pages.main_page import create_main_layout
 from plugins.admin import init_flask_admin
@@ -57,19 +58,7 @@ def path(path):
         navbar_items.insert(0, dbc.NavItem(dcc.Link(html.I(className="fa fa-cog"), className="btn btn-primary", href="/superadmin")))
 
     if len(current_user.gyms) == 0:
-        layout = dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    html.H3("Please enter gym code", className="my-3"),
-                    dbc.InputGroup([dbc.Input(id="gym_code")], className="mb-2"),
-                    dbc.Button("OK", id="add_gym", color="primary", className="mb-2"),
-                    dbc.Alert(id="gym-err", is_open=False, color="danger")
-                ], width=4)
-            ], justify="around"),
-            dbc.Row([
-
-            ])
-        ], fluid=True)
+        layout = create_enter_gym_layout()
         txt = f"{current_user.username}"
     else:
         if is_admin():
@@ -88,4 +77,4 @@ def path(path):
 
 if __name__ == '__main__':
 
-    app.run_server(host="0.0.0.0", debug=False, dev_tools_ui=True)
+    app.run_server(host="0.0.0.0", debug=True, dev_tools_ui=True)
