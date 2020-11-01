@@ -10,18 +10,18 @@ from dash_extensions.snippets import get_triggered
 
 from app import app
 from models import db, User, Zone, Booking
-from time_utils import as_date, as_datetime
+from time_utils import as_datetime
 from utils import get_chosen_gym
 
 
 @app.callback(
     [Output("save-gym-alert", "children"), Output("save-gym-alert", "color"), Output("save-gym-alert", "is_open")],
     [Trigger("save_gym_settings", "n_clicks")],
-    [State("max_persons", "value"), State("max_booking_length", "value"), State("max_booking_per_user", "value"),
+    [State("max_days_ahead", "value"), State("max_persons", "value"), State("max_booking_length", "value"), State("max_booking_per_user", "value"),
      State("max_time_per_user_per_day", "value"), State("max_number_per_booking", "value"),
      State("gym_admins", "value"), State(dict(type="zone-name", id=ALL), "value"), State(dict(type="zone-max-people", id=ALL), "value")]
 )
-def on_save_gym(max_persons, max_booking_length, max_booking_per_user,
+def on_save_gym(max_days_ahead, max_persons, max_booking_length, max_booking_per_user,
                 max_time_per_user_per_day, max_number_per_booking, admins, zone_name, zone_max_people):
     trig = get_triggered()
     if trig.id is None:
@@ -35,6 +35,7 @@ def on_save_gym(max_persons, max_booking_length, max_booking_per_user,
         g.max_booking_per_user = max_booking_per_user
         g.max_time_per_user_per_day = max_time_per_user_per_day
         g.max_number_per_booking = max_number_per_booking
+        g.max_days_ahead = max_days_ahead
 
         for zone, name, capacity in zip(g.zones, zone_name, zone_max_people):
             zone.name = name
@@ -122,6 +123,10 @@ def create_gym_admin_layout():
         dbc.Col([
             dbc.Label("Gym settings", size="lg"),
             dbc.FormGroup([
+                dbc.FormGroup([
+                    dbc.Label("Gym code: ", size="lg", style={"font-weight": "bold"}),
+                    dbc.Label(gym.code, className="mx-3"),
+                ]),
                 dbc.FormGroup(
                     [
                         dbc.Label("Max number of persons", html_for="max_persons"),
@@ -169,6 +174,16 @@ def create_gym_admin_layout():
                         dbc.Input(type="number", id="max_number_per_booking", value=gym.max_number_per_booking, min=1),
                         dbc.FormText(
                             "How many persons can one person book for",
+                            color="secondary",
+                        ),
+                    ],
+                ),
+                dbc.FormGroup(
+                    [
+                        dbc.Label("Max days ahead", html_for="max_days_ahead"),
+                        dbc.Input(type="number", id="max_days_ahead", value=gym.max_days_ahead, min=1),
+                        dbc.FormText(
+                            "How many days ahead can a booking be",
                             color="secondary",
                         ),
                     ],

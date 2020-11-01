@@ -8,6 +8,7 @@ from models import User
 class CustomRegisterForm(RegisterForm):
     username = StringField('Username')
 
+    @staticmethod
     def validate_username(form, field):
         username = field.data
         if User.query.filter_by(username=username).first():

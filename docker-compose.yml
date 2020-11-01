@@ -12,6 +12,8 @@ services:
       DB_PATH: "/res/db.db"
       SECRET_KEY: "${SECRET_KEY:-VERY SECRET SECRET!}"
       SMTP_PASS: "${SMTP_PASS:-}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_SERVER: "${SMTP_SERVER:-}"
       ADMIN_PASS: "${ADMIN_PASS:-changeme}"
       ADMIN_EMAIL: "${ADMIN_EMAIL:-no@email.com}"
     ports:

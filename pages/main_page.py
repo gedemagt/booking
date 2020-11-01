@@ -1,4 +1,3 @@
-import os
 from collections import defaultdict
 from datetime import datetime, timedelta, date
 
@@ -15,19 +14,26 @@ import plotly.graph_objects as go
 import numpy as np
 
 import config
-from admin import init_flask_admin
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
-from custom import CustomUserManager
-from gymadmin import create_gym_admin_layout
-from models import Booking, db, Gym, User, Zone
+from models import Booking, db, Zone
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin
-from app import fapp
+
+
+BOOTSTRAP_BLUE = "#0275d8"
+BOOTSTRAP_GREEN = "#5cb85c"
+BOOTSTRAP_LIGHT_BLUE = "#5bc0de"
+BOOTSTRAP_YELLOW = "#f0ad4e"
+BOOTSTRAP_RED = "#d9534f"
 
 
 def parse_heatmap_click(data):
     return datetime.strptime(data["points"][0]["x"].split(" ")[0] + " " + data["points"][0]["y"], "%Y-%m-%d %H:%M")
+
+
+def get_max_booking_length():
+    return get_chosen_gym().max_booking_length if get_chosen_gym().max_booking_length is not None else 24*4
 
 
 @app.callback(
@@ -35,7 +41,8 @@ def parse_heatmap_click(data):
     [Input("bookings_store", "data"), Input("selection_store", "data"), Input("view_store", "data")], group="redraw")
 def redraw_all(data1, data, view_data):
     d = parse(data["d"])
-    return create_bookings(), create_heatmap(d, parse(data["f"]), parse(data["t"]), view_data["show"], view_data["zone"])
+    return create_bookings(), create_heatmap(d, parse(data["f"]), parse(data["t"]), view_data["show"],
+                                             view_data["zone"])
 
 
 @app.callback(
@@ -94,23 +101,35 @@ def on_booking(data, nr_bookings, view_data):
 
 
 @app.callback(
-    [Output("selection_store", "data"), Output("week", "children")],
+    [Output("selection_store", "data"), Output("week", "children"),
+     Output("next_week", "disabled"), Output("prev_week", "disabled")],
     [Trigger("prev_week", "n_clicks"), Trigger("next_week", "n_clicks")],
-    [State("selection_store", "data")], group="ok"
+    [State("selection_store", "data"), State("view_store", "data")], group="ok"
 )
-def on_week(data):
+def on_week(data, view_data):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
 
     d = parse(data["d"])
 
+    zone = Zone.query.filter_by(id=view_data["zone"]).first()
+
     if trig.id == "next_week":
-        data["d"] = d = d + timedelta(days=7)
+        if is_admin() or \
+                zone.gym.max_days_ahead is None or \
+                datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7):
+            data["d"] = d = d + timedelta(days=7)
     if trig.id == "prev_week":
         if datetime.now() < d:
             data["d"] = d = d - timedelta(days=7)
-    return data, d.isocalendar()[1]
+
+    can_next_week = is_admin() or \
+                    zone.gym.max_days_ahead is None or \
+                    datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7)
+    can_prev_week = datetime.now() < d
+
+    return data, d.isocalendar()[1], not can_next_week, not can_prev_week
 
 
 def create_bookings():
@@ -123,23 +142,37 @@ def create_bookings():
     result = []
     for d in sorted(k.keys()):
         result.append(
-            html.Tr([
-                html.Td(d.strftime("%d %b %Y"), style={"background-color": "lightgrey"}, colSpan=4),
-                html.Td("#", style={"background-color": "lightgrey"}, colSpan=2),
-            ])
+            dbc.Row([
+                dbc.Col(d.strftime("%d %b %Y"), width=7),
+                dbc.Col("#", width=2)
+            ], style={"background-color": "lightgrey"})
         )
+
         for b in k[d]:
             result.append(
-                html.Tr([
-                    html.Td(b.start.strftime("%H:%M"), style={"text-align": "left"}),
-                    html.Td("-", style={"text-align": "left"}),
-                    html.Td(b.end.strftime("%H:%M"), style={"text-align": "left"}),
-                    html.Td(b.zone.name, style={"text-align": "left"}),
-                    html.Td(b.number, style={"text-align": "left"}),
-                    html.Td(dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id), color="danger"))
-                ]),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Row([
+                            dbc.Col([
+                                f'{b.start.strftime("%H:%M")} - {b.end.strftime("%H:%M")}',
+                            ], width=12),
+                            dbc.Col([
+                                b.zone.name,
+                            ], width=12),
+                        ])
+                    ], width=7),
+                    dbc.Col([
+                        b.number,
+                    ], width=2),
+                    dbc.Col([
+                        dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
+                                   color="danger")
+                    ], width=2)
+                ], className="my-1")
             )
-    return dbc.Table(result, style={"width": "100%"})
+            result.append(html.Hr())
+
+    return dbc.Container(dbc.Table(result, style={"width": "100%"}))
 
 
 @app.callback(
@@ -153,65 +186,12 @@ def toggle_popover(n, is_open):
     return is_open
 
 
-@app.callback(
-    [Output("location", "pathname"), Output("gym-err", "children"), Output("gym-err", "is_open")],
-    [Input("add_gym", "n_clicks")],
-    [State("gym_code", "value")]
-)
-def on_new_gym(n, gym_code):
-    if gym_code is not None:
-        g = db.session.query(Gym).filter_by(code=gym_code).first()
-        if g:
-            current_user.gyms.append(g)
-            db.session.commit()
-            return "/", "", False
-
-    return "/", "Gym not found", n is not None
-
-
-@app.callback(
-    [Output("layout", "children"), Output("navbar", "children"), Output("navbar", "brand")],
-    [Input("location", "pathname")], group="view"
-)
-def path(path):
-
-    navbar_items = [
-        dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
-    ]
-
-    if len(current_user.gyms) == 0:
-        layout = dbc.Container([
-            dbc.Row([
-                dbc.Col([
-                    html.H3("Please enter gym code", className="my-3"),
-                    dbc.InputGroup([dbc.Input(id="gym_code")], className="mb-2"),
-                    dbc.Button("OK", id="add_gym", color="primary", className="mb-2"),
-                    dbc.Alert(id="gym-err", is_open=False, color="danger")
-                ], width=4)
-            ], justify="around"),
-            dbc.Row([
-
-            ])
-        ], fluid=True)
-        txt = f"{current_user.username}"
-    else:
-        if is_admin():
-            navbar_items.insert(0, dbc.NavItem(html.A(html.Button("Gym", className="btn btn-primary"), href="/gym_admin")))
-
-        if path and path.endswith("gym_admin"):
-            layout = create_gym_admin_layout()
-        else:
-            layout = create_main_layout()
-
-        txt = f"{get_chosen_gym().name}"
-    return layout, navbar_items, txt
-
-
-def create_heatmap(d, f, t, yrange, zone):
+def create_heatmap(d, f, t, yrange, zone_id):
+    zone = Zone.query.filter_by(id=zone_id).first()
     week_start_day = start_of_week(d)
-    week_end_day = week_start_day + timedelta(days=8)
+    week_end_day = week_start_day + timedelta(days=7)
 
-    all_bookings, my_bookings = create_weekly_booking_map(d, zone)
+    all_bookings, my_bookings = create_weekly_booking_map(d, zone_id)
     hover = all_bookings.copy()
 
     x = [(week_start_day.date() + timedelta(days=x)) for x in range(7)]
@@ -219,9 +199,10 @@ def create_heatmap(d, f, t, yrange, zone):
     y = list(reversed([(start + timedelta(minutes=15 * k)).strftime("%H:%M") for k in range(24 * 4)]))
 
     all_bookings[my_bookings > 0] = -3
+    if f and week_start_day <= f < week_end_day:
 
-    if f and week_start_day <= f <= week_end_day:
         start_idx = timeslot_index(f, week_start_day)
+
         all_bookings[start_idx] = -3.5
         if t:
             end_idx = timeslot_index(t, week_start_day)
@@ -231,19 +212,24 @@ def create_heatmap(d, f, t, yrange, zone):
     if week_start_day < datetime.now() < week_end_day:
         all_bookings[:timeslot_index(datetime.now(), week_start_day) + 1] = -4.5
 
+    if not is_admin() and zone.gym.max_days_ahead is not None and \
+            start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead) < week_end_day:
+        latest = timeslot_index(start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead + 1), week_start_day)
+        all_bookings[max(latest, 0):] = -4.5
+
     z = np.flipud(np.reshape(all_bookings, (7, 24 * 4)).transpose())
     hover = np.flipud(np.reshape(hover, (7, 24 * 4)).transpose())
 
-    _max = get_chosen_gym().get_max_people(zone)
+    _max = get_chosen_gym().get_max_people(zone_id)
     _close = _max - config.CLOSE
     l = _max + 5
 
     if yrange == "am":
-        y_range = [12*4, 24*4]
+        y_range = [12 * 4, 24 * 4]
     elif yrange == "pm":
-        y_range = [0*4, 12*4]
+        y_range = [0 * 4, 12 * 4]
     else:
-        y_range = [0, 24*4]
+        y_range = [0, 24 * 4]
 
     fig = go.Figure(
         layout=go.Layout(
@@ -258,7 +244,7 @@ def create_heatmap(d, f, t, yrange, zone):
             x=x,
             y=y,
             text=hover,
-            hovertemplate="%{y}: %{text}",
+            hovertemplate="%{y}: %{text}/" + str(_max),
             hoverongaps=False,
             zmin=-5,
             zmax=_max,
@@ -267,11 +253,11 @@ def create_heatmap(d, f, t, yrange, zone):
             ygap=0.1,
             colorscale=[
                 (0.0, "grey"), (1 / l, "grey"),
-                (1 / l, "yellow"), (2 / l, "yellow"),
-                (2 / l, "green"), (5 / l, "green"),
-                (5 / l, "blue"), ((_close + 5) / l, "blue"),
-                ((_close + 5) / l, "orange"), (0.99, "orange"),
-                (0.99, "red"), (1.0, "red")
+                (1 / l, BOOTSTRAP_LIGHT_BLUE), (2 / l, BOOTSTRAP_LIGHT_BLUE),
+                (2 / l, BOOTSTRAP_GREEN), (5 / l, BOOTSTRAP_GREEN),
+                (5 / l, BOOTSTRAP_BLUE), ((_close + 5) / l, BOOTSTRAP_BLUE),
+                ((_close + 5) / l, BOOTSTRAP_YELLOW), (0.99, BOOTSTRAP_YELLOW),
+                (0.99, BOOTSTRAP_RED), (1.0, BOOTSTRAP_RED)
             ]
         )
     )
@@ -296,20 +282,17 @@ OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15 * x)).strftime("%
 
 
 @app.callback(
-    [Output("msg2", "children"), Output("msg2", "color"),
-     Output("msg2-container", "style"), Output("book", "disabled")],
+    [Output("msg2", "children"), Output("msg2", "color"), Output("msg2", "is_open"), Output("book", "disabled")],
     [Input("selection_store", "data")],
     [State("nr_bookings", "value"), State("view_store", "data")]
 )
 def val_booking(data, nr, view_data):
-    style = {"visibility": "hidden"}
     if data["f"] is not None and data["t"] is not None:
         try:
             validate_booking(parse(data["f"]), parse(data["t"]), int(nr), view_data["zone"])
         except AssertionError as e:
-            style = {"visibility": "visible"}
-            return str(e), "danger", style, True
-    return "Empty", "success", style, False
+            return str(e), "danger", True, True
+    return "Empty", "success", False, False
 
 
 @app.callback(
@@ -333,8 +316,14 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
             f = parse(data["f"])
             data["f"] = min(f, picked_date)
             data["t"] = max(f, picked_date)
+
+            max_dt = timedelta(minutes=15 * get_max_booking_length())
+            if data["t"] - data["f"] > max_dt:
+                data["t"] = data["f"] + max_dt
+
         data["source"] = "graph"
     else:
+
         if trig.id == "from-drop-down":
             if prev_from is None:
                 data["f"] = None
@@ -359,44 +348,51 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
     [Output("from-drop-down", "options"), Output("from-drop-down", "value"), Output("to-drop-down", "options"),
      Output("to-drop-down", "value"), Output("date-picker", "date")],
     [Input("selection_store", "data")],
-    [State("from-drop-down", "options"), State("from-drop-down", "value"), State("to-drop-down", "options"),
-     State("to-drop-down", "value"), State("date-picker", "date")]
+    [State("from-drop-down", "value"), State("to-drop-down", "value"),
+     State("date-picker", "date")]
 )
-def update_inputs(data, prev_from_options, prev_from, prev_to_options, prev_to, prev_date):
+def update_inputs(data, prev_from, prev_to, prev_date):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
 
     from_value = None
     to_value = None
-    options = prev_to_options
 
-    date = prev_date
+    day = prev_date
 
     if data.get("source", "") == "graph":
-        date = start_of_day(datetime.now())
+        day = start_of_day(datetime.now())
         if data["f"] is not None:
             d = parse(data["f"])
-            date = start_of_day(d)
-            from_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
+            day = start_of_day(d)
+            from_value = timeslot_index(d)
         if data["t"] is not None:
             d = parse(data["t"])
-            to_value = int((d - start_of_day(d)).total_seconds() / 60 / 15)
-        date = date.date()
-        options = OPTIONS[from_value + 1:] if from_value else OPTIONS[1:]
+            to_value = timeslot_index(d)
+        day = day.date()
     elif data.get("source", "") == "input":
+
         from_value = prev_from if data["f"] is not None else None
-        options = prev_to_options if data["f"] is None else OPTIONS[int((parse(data["f"]) - start_of_day(parse(data["f"]))).total_seconds() / 60 / 15) + 1:]
         to_value = prev_to if data["t"] is not None else None
 
-    if as_date(date) == datetime.now().date():
-        prev_from_options = OPTIONS[timeslot_index(datetime.now())+1:]
-        if from_value is None:
-            options = OPTIONS[timeslot_index(datetime.now())+2:]
-    else:
-        prev_from_options = OPTIONS
+    from_min_index = timeslot_index(datetime.now()) + 1 if as_date(day) == datetime.now().date() else 0
+    from_max_index = len(OPTIONS) - 1
 
-    return prev_from_options, from_value, options, to_value, date
+    if from_value is not None:
+        to_min_index = from_value + 1
+        to_max_index = from_value + 1 + get_max_booking_length() if not is_admin() else len(OPTIONS) - 1
+    else:
+        to_min_index = from_min_index + 1
+        to_max_index = len(OPTIONS) - 1
+
+    if from_value is not None:
+        from_value = from_value
+
+    if to_value is not None:
+        to_value = to_value
+
+    return OPTIONS[from_min_index:from_max_index], from_value, OPTIONS[to_min_index:to_max_index], to_value, day
 
 
 @app.callback(
@@ -424,8 +420,30 @@ def show_selection(data):
     return data
 
 
-def create_main_layout():
+app.clientside_callback(
+    """
+    function placeholder(date) {
+        document.getElementById("date").setAttribute("readonly", "readonly");
+        return [screen.width];
+    }
+    """,
+    [Output("dummy", "children")],
+    [Input("date-picker", "date")]
+)
+
+
+@app.callback(
+    Output("date-picker", "with_full_screen_portal"),
+    Input("dummy", "children")
+)
+def on_screen_width(s):
+    screen_width = int(s)
+    return screen_width < 768
+
+
+def create_main_layout(gym):
     return dbc.Row([
+        html.Div(id="dummy", hidden=True),
         dbc.Col([
             dbc.Row([
                 dbc.Col([
@@ -433,64 +451,84 @@ def create_main_layout():
                     dbc.Card([
                         dbc.CardHeader("New booking"),
                         dbc.CardBody([
-                            html.Table([
-                                html.Tr([
-                                    html.Td([
-                                        html.Span(html.I(className="fa fa-user-friends"))
-                                    ], style={"width": "50px"}),
-                                    html.Td([
-                                        html.Div(
-                                            dbc.Input(
-                                                value=1,
-                                                id="nr_bookings",
-                                                type="number",
-                                                min=1,
-                                                max=get_chosen_gym().max_number_per_booking if not is_admin() else get_chosen_gym().max_people
-                                            )
+                            html.Div(
+                                dbc.Row([
+                                    dbc.Col([
+                                        html.Span("Zone")
+                                    ], width=3, style={"margin": "auto"}),
+                                    dbc.Col([
+                                        dcc.Dropdown(
+                                            id="zone-picker",
+                                            options=[{"label": x.name, "value": x.id} for x in gym.zones],
+                                            value=gym.zones[0].id,
+                                            clearable=False,
+                                            searchable=False,
+                                            style={"width": "100%"}
                                         )
-                                    ], style={"width": "50px"}),
-                                ]),
-                                html.Tr([
-                                    html.Td([
-                                        "Day"
-                                    ], style={"width": "50px"}),
-                                    html.Td([
+                                    ], width=9)
+                                ], justify="between", className="my-1"),
+                                hidden=len(gym.zones) == 1
+                            ),
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Span(html.I(className="fa fa-user-friends"))
+                                ], width=3, style={"margin": "auto"}),
+                                dbc.Col([
+                                    dbc.Input(
+                                        value=1,
+                                        id="nr_bookings",
+                                        type="number",
+                                        min=1,
+                                        max=gym.max_number_per_booking if not is_admin() else gym.max_people
+                                    )
+                                ], width=9)
+                            ], justify="between", className="my-1"),
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Span("Day")
+                                ], width=3, style={"margin": "auto"}),
+                                dbc.Col([
+                                    html.Div([
                                         dcc.DatePickerSingle(
                                             id="date-picker",
                                             date=datetime.now().date(),
                                             min_date_allowed=datetime.now().date(),
-                                            display_format="DD-MM-YYYY"
+                                            max_date_allowed=datetime.now().date() + timedelta(days=gym.max_days_ahead) if not is_admin() and gym.max_days_ahead else None,
+                                            display_format="DD-MM-YYYY",
+                                            clearable=False
                                         )
-                                    ], style={"width": "50px"}),
-                                    html.Td(),
-                                    html.Td([
-                                        html.Div(dcc.DatePickerSingle(id="dummy"), style={"visibility": "hidden"})
                                     ])
-                                ]),
-                                html.Tr([
-                                    html.Td([
-                                        "Time"
-                                    ], style={"width": "50px"}),
-                                    html.Td([
-                                        dcc.Dropdown(
-                                            id="from-drop-down",
-                                            value=4 * 8,
-                                            options=OPTIONS[:-1]
-                                        )
-                                    ], style={"width": "50px"}),
-                                    html.Td([
-                                        html.Div("-", className="text-center")
-                                    ], style={"width": "50px"}),
-                                    html.Td([
-                                        dcc.Dropdown(
-                                            id="to-drop-down",
-                                            options=OPTIONS[:-1]
-                                        )
-                                    ], style={"width": "50px"})
-                                ]),
-                            ]),
+                                ], width=9)
+                            ], justify="between", className="my-1"),
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Span("Time")
+                                ], width=3, style={"margin": "auto"}),
+                                dbc.Col([
+                                    dbc.Row([
+                                        dbc.Col([
+                                            dcc.Dropdown(
+                                                id="from-drop-down",
+                                                value=4 * 8,
+                                                options=OPTIONS[:-1],
+                                                searchable=False,
+                                            )
+                                        ], width=12, sm=5),
+                                        dbc.Col([
+                                            html.Div("-", style={"text-align": "center", "margin": "auto"})
+                                        ], width=0, sm=2),
+                                        dbc.Col([
+                                            dcc.Dropdown(
+                                                id="to-drop-down",
+                                                options=OPTIONS[:-1],
+                                                searchable=False,
+                                            )
+                                        ], width=12, sm=5)
+                                    ])
+                                ], width=9)
+                            ], justify="between", className="my-1"),
                             dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
-                            html.Div(dbc.Alert("Empty", id="msg2", is_open=True, className="mt-3 mb-0"), id="msg2-container", style={"visibility": "hidden"})
+                            dbc.Alert("Empty", id="msg2", is_open=False, className="mt-3 mb-0"),
                         ]),
                         dbc.CardFooter([
                             dbc.Row([dbc.Button("Book", id="book", color="primary")], justify="end")
@@ -513,45 +551,33 @@ def create_main_layout():
             dbc.Container([
                 dbc.Row([
                     dbc.Col([
-                        dbc.Row([
-                            dcc.Dropdown(
-                                id="zone-picker",
-                                options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
-                                value=get_chosen_gym().zones[0].id,
-                                clearable=False,
-                                style={"width": "100%"}
-                            )
-                        ], justify="start")
-                    ], width=2),
-                    dbc.Col(width=1),
+
+                    ], width=8, sm=4),
+                    dbc.Col([
+                        dbc.DropdownMenu([
+                            dbc.DropdownMenuItem("24h", id="show-all"),
+                            dbc.DropdownMenuItem("AM", id="show-am"),
+                            dbc.DropdownMenuItem("PM", id="show-pm")
+                        ], label="\u231A", color="primary")
+                    ], width=4, sm=8, style={"text-align": "right"})
+                ], justify="between", className="my-3"),
+                dbc.Row([
                     dbc.Col([
                         html.Div([
-                            dbc.Button("<", id="prev_week", color="primary"),
+                            dbc.Button("<", id="prev_week", color="primary", disabled=True),
                             html.Span([
                                 html.Span("Week", className="ml-3 mr-1"),
-                                html.Span(id="week", className="mr-3 ml-1"),
+                                html.Span(datetime.now().isocalendar()[1], id="week", className="mr-3 ml-1"),
                             ]),
                             dbc.Button(">", id="next_week", color="primary")
                         ], style={"text-align": "center"})
-                    ], width=6),
-                    dbc.Col([
-                        dbc.Row(
-                            dbc.ButtonGroup(
-                                [
-                                    dbc.Button("24H", id="show-all", color="secondary"),
-                                    dbc.Button("AM", id="show-am", color="secondary"),
-                                    dbc.Button("PM", id="show-pm", color="secondary")
-                                ]
-                            ),
-                            justify="end"
-                        )
-                    ], width=3)
-                ], justify="between", className="my-3 mr-2"),
+                    ], width=12)
+                ], justify="between", className="my-3"),
                 dbc.Row([
                     dbc.Col([
                         html.Div([
                             dcc.Graph(
-                                figure=create_heatmap(datetime.now(), None, None, "pm", get_chosen_gym().zones[0].id),
+                                figure=create_heatmap(datetime.now(), None, None, "pm", gym.zones[0].id),
                                 id="main-graph",
                                 style={"height": "70vh", "width": "100%"})
                         ], className="my-3"),
@@ -560,58 +586,3 @@ def create_main_layout():
             ], fluid=True)
         ], width=12, lg=7),
     ], className="p-3")
-
-
-app.layout = html.Div([
-    dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(),
-                                          "source": None}),
-    dcc.Store(id="bookings_store", data={}),
-    dcc.Store(id="view_store", data={"show": "pm", "zone": None}),
-    dcc.Location(id="location"),
-    html.Div(id="redirect"),
-    dbc.NavbarSimple(
-        children=[],
-        brand="Booking",
-        brand_href="/",
-        color="primary",
-        dark=True,
-        id="navbar"
-    ),
-    dbc.Container(html.Div(id="layout"), fluid=True)
-])
-
-init_flask_admin()
-
-user_manager = CustomUserManager(fapp, db, UserClass=User)
-
-
-if not os.path.exists(config.DB_PATH):
-    print("Initializing database")
-
-    db.create_all()
-
-    g = Gym(name="TestGym", code="TestGym")
-
-    admin = User(
-        active=True,
-        username="admin",
-        email_confirmed_at=datetime.now(),
-        email=os.getenv("ADMIN_EMAIL", "gedemagt+bookingadmin@gmail.com"),
-        password=user_manager.password_manager.hash_password(os.getenv("ADMIN_PASS", "changeme")),
-        role="ADMIN",
-    )
-
-    g.zones.append(Zone(name="Zone 1"))
-    g.zones.append(Zone(name="Zone 2"))
-    g.admins.append(admin)
-    admin.gyms.append(g)
-
-    db.session.add(g)
-    db.session.add(admin)
-    db.session.commit()
-
-
-if __name__ == '__main__':
-
-    app.suppress_callback_exceptions = True
-    app.run_server(debug=True, dev_tools_ui=False)
