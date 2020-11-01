@@ -81,11 +81,12 @@ def validate_booking(start, end, number, zone_id):
 
 def create_daily_booking_map(d, zone_id=None):
     day = start_of_day(d)
+    next_day = day + timedelta(days=1)
 
     all_bookings = np.zeros(24 * 4)
     zone_bookings = np.zeros(24 * 4)
 
-    for b in Booking.query.filter(Booking.start >= day).filter(Booking.end <= day + timedelta(days=1)).filter_by(zone_id=zone_id).all():
+    for b in Booking.query.filter(Booking.start >= day).filter(Booking.end <= next_day).filter_by(zone_id=zone_id).filter(Booking.period is None).all():
         start = (b.start - day).total_seconds() / 60 / 15
         end = (b.end - day).total_seconds() / 60 / 15
 
@@ -96,7 +97,28 @@ def create_daily_booking_map(d, zone_id=None):
         if zone_id and b.zone.id == zone_id:
             zone_bookings += start_end_array
 
+    for b in Booking.query.filter(Booking.start <= next_day).filter_by(zone_id=zone_id).filter(Booking.period is not None).all():
+        if b.period == "d" or \
+                b.period == "w" and b.start.weekday() == day.weekday() or \
+                b.period == "m" and b.day == day.day:
+            start = b.start.replace(day=day.day, month=day.month, year=day.year)
+            end = b.end.replace(day=day.day, month=day.month, year=day.year)
+
+            start_end_array = create_daily_from_to(timeslot_index(start), timeslot_index(end)) * b.number
+            all_bookings += start_end_array
+
+            if zone_id and b.zone.id == zone_id:
+                zone_bookings += start_end_array
+
     return all_bookings, zone_bookings
+
+
+def create_start_end_array(start, end, number, week_start_day):
+    start = timeslot_index(start, week_start_day)
+    end = timeslot_index(end, week_start_day)
+
+    start_end_array = create_from_to(start, end) * number
+    return start_end_array
 
 
 def create_weekly_booking_map(d, zone):
@@ -107,15 +129,53 @@ def create_weekly_booking_map(d, zone):
     my_bookings = np.zeros(24 * 4 * 7)
 
     for b in Booking.query.filter(Booking.start >= week_start_day).filter(
-            Booking.end <= week_end).filter_by(zone_id=zone).all():
-        start = timeslot_index(b.start, week_start_day)
-        end = timeslot_index(b.end, week_start_day)
+            Booking.end <= week_end).filter_by(zone_id=zone).filter(Booking.period is None).all():
 
-        start_end_array = create_from_to(start, end) * b.number
-
+        start_end_array = create_start_end_array(b.start, b.end, b.number, week_start_day)
         all_bookings += start_end_array
 
         if current_user and b.user.id == current_user.id:
             my_bookings += start_end_array
+
+    for b in Booking.query.filter(Booking.start <= week_end).filter_by(zone_id=zone).filter(Booking.period is not None).all():
+        if b.period == "d":
+            start_repeat = max(b.start.date(), week_start_day.date())
+
+            start = b.start.replace(day=start_repeat.day, month=start_repeat.month, year=start_repeat.year)
+            end = b.end.replace(day=start_repeat.day, month=start_repeat.month, year=start_repeat.year)
+
+            while end < week_end:
+                start_end_array = create_start_end_array(start, end, b.number, week_start_day)
+                all_bookings += start_end_array
+                if current_user and b.user.id == current_user.id:
+                    my_bookings += start_end_array
+                start += timedelta(days=1)
+                end += timedelta(days=1)
+
+        if b.period == "w":
+            repeat_day = max(start_of_day(b.start), week_start_day + timedelta(days=b.start.weekday()))
+
+            start = repeat_day + (b.start - start_of_day(b.start))
+            end = repeat_day + (b.end - start_of_day(b.end))
+
+            start_end_array = create_start_end_array(start, end, b.number, week_start_day)
+            all_bookings += start_end_array
+            if current_user and b.user.id == current_user.id:
+                my_bookings += start_end_array
+
+        if b.period == "m":
+            days_in_week = [(week_start_day + timedelta(days=x)).day for x in range(7)]
+
+            if b.start.day in days_in_week:
+
+                repeat_day = week_start_day + timedelta(days=days_in_week.index(b.start.day))
+
+                start = repeat_day + (b.start - start_of_day(b.start))
+                end = repeat_day + (b.end - start_of_day(b.end))
+
+                start_end_array = create_start_end_array(start, end, b.number, week_start_day)
+                all_bookings += start_end_array
+                if current_user and b.user.id == current_user.id:
+                    my_bookings += start_end_array
 
     return all_bookings, my_bookings

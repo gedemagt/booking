@@ -27,6 +27,11 @@ BOOTSTRAP_LIGHT_BLUE = "#5bc0de"
 BOOTSTRAP_YELLOW = "#f0ad4e"
 BOOTSTRAP_RED = "#d9534f"
 
+PERIOD_MAP = {
+    2: "d",
+    3: "w",
+    4: "m"
+}
 
 def parse_heatmap_click(data):
     return datetime.strptime(data["points"][0]["x"].split(" ")[0] + " " + data["points"][0]["y"], "%Y-%m-%d %H:%M")
@@ -66,9 +71,10 @@ def on_delete():
     [Output("msg", "children"), Output("msg", "color"),
      Output("msg", "is_open"), Output("selection_store", "data")],
     [Trigger("book", "n_clicks")],
-    [State("selection_store", "data"), State("nr_bookings", "value"), State("view_store", "data")], group="ok"
+    [State("selection_store", "data"), State("nr_bookings", "value"),
+     State("view_store", "data"), State("repeat-radio-buttons", "value")], group="ok"
 )
-def on_booking(data, nr_bookings, view_data):
+def on_booking(data, nr_bookings, view_data, radio_buttons):
     msg = ""
     msg_color = "warning"
     if date is not None and data["f"] is not None and data["t"] is not None:
@@ -79,8 +85,12 @@ def on_booking(data, nr_bookings, view_data):
         try:
             validate_booking(b_start, b_end, int(nr_bookings), view_data["zone"])
             zone = next(x for x in get_chosen_gym().zones if x.id == view_data["zone"])
+            period = None
+            if is_admin() and radio_buttons > 1:
+                period = PERIOD_MAP[radio_buttons]
+
             db.session.add(Booking(start=b_start, end=b_end, user=current_user,
-                                   zone=zone, number=int(nr_bookings)))
+                                   zone=zone, number=int(nr_bookings), period=period))
             db.session.commit()
             msg = "Success"
             msg_color = "success"
@@ -143,7 +153,8 @@ def create_bookings():
     for d in sorted(k.keys()):
         result.append(
             dbc.Row([
-                dbc.Col(d.strftime("%d %b %Y"), width=7),
+                dbc.Col(d.strftime("%d %b %Y"), width=6),
+                dbc.Col(html.I(className="fa fa-repeat"), width=1),
                 dbc.Col("#", width=2)
             ], style={"background-color": "lightgrey"})
         )
@@ -160,7 +171,10 @@ def create_bookings():
                                 b.zone.name,
                             ], width=12),
                         ])
-                    ], width=7),
+                    ], width=6),
+                    dbc.Col([
+                        b.period,
+                    ], width=1),
                     dbc.Col([
                         b.number,
                     ], width=2),
@@ -526,6 +540,30 @@ def create_main_layout(gym):
                                         ], width=12, sm=5)
                                     ])
                                 ], width=9)
+                            ], justify="between", className="my-1"),
+                            dbc.Row([
+                                html.Div([
+                                    dbc.Col([
+                                        html.Span(html.I(className="fa fa-repeat"))
+                                    ], width=3, style={"margin": "auto"}),
+                                    dbc.Col([
+                                        dbc.FormGroup(
+                                            [
+                                                dbc.RadioItems(
+                                                    options=[
+                                                        {"label": "No", "value": 1},
+                                                        {"label": "Daily", "value": 2},
+                                                        {"label": "Weekly", "value": 3},
+                                                        {"label": "Monthly", "value": 4},
+                                                    ],
+                                                    value=1,
+                                                    id="repeat-radio-buttons",
+                                                    inline=True,
+                                                ),
+                                            ]
+                                        )
+                                    ], width=9)
+                                ], hidden=not is_admin())
                             ], justify="between", className="my-1"),
                             dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
                             dbc.Alert("Empty", id="msg2", is_open=False, className="mt-3 mb-0"),

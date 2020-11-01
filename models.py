@@ -49,6 +49,9 @@ class Booking(db.Model):
     user_id = db.Column(db.Integer(), db.ForeignKey('users.id'))
     zone_id = db.Column(db.Integer(), db.ForeignKey('zones.id'), nullable=False)
 
+    end_repeat = db.Column(db.DateTime, nullable=True)
+    period = db.Column(db.String(2), nullable=True)
+
 
 class Gym(db.Model):
     __tablename__ = 'gyms'
@@ -119,6 +122,18 @@ def try_init_db(user_manager):
         g.admins.append(admin)
         admin.gyms.append(g)
 
+        user = User(
+            active=True,
+            username="user",
+            email_confirmed_at=datetime.now(),
+            email=os.getenv("TEST_USER_EMAIL", "no@email.com"),
+            password=user_manager.password_manager.hash_password(os.getenv("TEST_USER_PASS", "changeme")),
+            role="USER",
+        )
+
+        user.gyms.append(g)
+
         db.session.add(g)
         db.session.add(admin)
+        db.session.add(user)
         db.session.commit()
