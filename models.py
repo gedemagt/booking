@@ -1,13 +1,14 @@
 import os
 from datetime import datetime
 
+from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_user import UserMixin
 
-import config
 from app import fapp
 
 db = SQLAlchemy(fapp)
+migrate = Migrate(fapp, db)
 
 gym_admins = db.Table(
     'gym_admins',
