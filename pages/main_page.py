@@ -173,7 +173,7 @@ def create_bookings():
                         ])
                     ], width=6),
                     dbc.Col([
-                        b.period,
+                        b.period.upper(),
                     ], width=1),
                     dbc.Col([
                         b.number,
@@ -541,10 +541,10 @@ def create_main_layout(gym):
                                     ])
                                 ], width=9)
                             ], justify="between", className="my-1"),
-                            dbc.Row([
-                                html.Div([
+                            html.Div([
+                                dbc.Row([
                                     dbc.Col([
-                                        html.Span(html.I(className="fa fa-repeat"))
+                                        html.Span("Repeat")
                                     ], width=3, style={"margin": "auto"}),
                                     dbc.Col([
                                         dbc.FormGroup(
@@ -552,19 +552,19 @@ def create_main_layout(gym):
                                                 dbc.RadioItems(
                                                     options=[
                                                         {"label": "No", "value": 1},
-                                                        {"label": "Daily", "value": 2},
-                                                        {"label": "Weekly", "value": 3},
-                                                        {"label": "Monthly", "value": 4},
+                                                        {"label": "D", "value": 2},
+                                                        {"label": "W", "value": 3},
+                                                        {"label": "M", "value": 4},
                                                     ],
                                                     value=1,
                                                     id="repeat-radio-buttons",
                                                     inline=True,
                                                 ),
-                                            ]
+                                            ], style={"margin": "auto"}
                                         )
-                                    ], width=9)
-                                ], hidden=not is_admin())
-                            ], justify="between", className="my-1"),
+                                    ], width=9)], justify="between", className="my-1")],
+                                hidden=not is_admin()
+                            ),
                             dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
                             dbc.Alert("Empty", id="msg2", is_open=False, className="mt-3 mb-0"),
                         ]),
