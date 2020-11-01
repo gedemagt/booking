@@ -116,13 +116,17 @@ def on_week(data, view_data):
     zone = Zone.query.filter_by(id=view_data["zone"]).first()
 
     if trig.id == "next_week":
-        if zone.gym.max_days_ahead is None or datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7):
+        if is_admin() or \
+                zone.gym.max_days_ahead is None or \
+                datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7):
             data["d"] = d = d + timedelta(days=7)
     if trig.id == "prev_week":
         if datetime.now() < d:
             data["d"] = d = d - timedelta(days=7)
 
-    can_next_week = zone.gym.max_days_ahead is None or datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7)
+    can_next_week = is_admin() or \
+                    zone.gym.max_days_ahead is None or \
+                    datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7)
     can_prev_week = datetime.now() < d
 
     return data, d.isocalendar()[1], not can_next_week, not can_prev_week
@@ -207,7 +211,7 @@ def create_heatmap(d, f, t, yrange, zone_id):
     if week_start_day < datetime.now() < week_end_day:
         all_bookings[:timeslot_index(datetime.now(), week_start_day) + 1] = -4.5
 
-    if zone.gym.max_days_ahead is not None and \
+    if not is_admin() and zone.gym.max_days_ahead is not None and \
             start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead) < week_end_day:
         latest = timeslot_index(start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead + 1), week_start_day)
         all_bookings[max(latest, 0):] = -4.5
@@ -488,7 +492,7 @@ def create_main_layout(gym):
                                             id="date-picker",
                                             date=datetime.now().date(),
                                             min_date_allowed=datetime.now().date(),
-                                            max_date_allowed=datetime.now().date() + timedelta(days=gym.max_days_ahead) if gym.max_days_ahead else None,
+                                            max_date_allowed=datetime.now().date() + timedelta(days=gym.max_days_ahead) if not is_admin() and gym.max_days_ahead else None,
                                             display_format="DD-MM-YYYY",
                                             clearable=False
                                         )
