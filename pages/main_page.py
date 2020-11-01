@@ -16,7 +16,7 @@ import numpy as np
 import config
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
-from models import Booking, db
+from models import Booking, db, Zone
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin
 
@@ -101,23 +101,31 @@ def on_booking(data, nr_bookings, view_data):
 
 
 @app.callback(
-    [Output("selection_store", "data"), Output("week", "children")],
+    [Output("selection_store", "data"), Output("week", "children"),
+     Output("next_week", "disabled"), Output("prev_week", "disabled")],
     [Trigger("prev_week", "n_clicks"), Trigger("next_week", "n_clicks")],
-    [State("selection_store", "data")], group="ok"
+    [State("selection_store", "data"), State("view_store", "data")], group="ok"
 )
-def on_week(data):
+def on_week(data, view_data):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
 
     d = parse(data["d"])
 
+    zone = Zone.query.filter_by(id=view_data["zone"]).first()
+
     if trig.id == "next_week":
-        data["d"] = d = d + timedelta(days=7)
+        if zone.gym.max_days_ahead is None or datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7):
+            data["d"] = d = d + timedelta(days=7)
     if trig.id == "prev_week":
         if datetime.now() < d:
             data["d"] = d = d - timedelta(days=7)
-    return data, d.isocalendar()[1]
+
+    can_next_week = zone.gym.max_days_ahead is None or datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7)
+    can_prev_week = datetime.now() < d
+
+    return data, d.isocalendar()[1], not can_next_week, not can_prev_week
 
 
 def create_bookings():
@@ -174,11 +182,12 @@ def toggle_popover(n, is_open):
     return is_open
 
 
-def create_heatmap(d, f, t, yrange, zone):
+def create_heatmap(d, f, t, yrange, zone_id):
+    zone = Zone.query.filter_by(id=zone_id).first()
     week_start_day = start_of_week(d)
     week_end_day = week_start_day + timedelta(days=8)
 
-    all_bookings, my_bookings = create_weekly_booking_map(d, zone)
+    all_bookings, my_bookings = create_weekly_booking_map(d, zone_id)
     hover = all_bookings.copy()
 
     x = [(week_start_day.date() + timedelta(days=x)) for x in range(7)]
@@ -198,10 +207,15 @@ def create_heatmap(d, f, t, yrange, zone):
     if week_start_day < datetime.now() < week_end_day:
         all_bookings[:timeslot_index(datetime.now(), week_start_day) + 1] = -4.5
 
+    if zone.gym.max_days_ahead is not None and \
+            start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead) < week_end_day:
+        latest = timeslot_index(start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead + 1), week_start_day)
+        all_bookings[max(latest, 0):] = -4.5
+
     z = np.flipud(np.reshape(all_bookings, (7, 24 * 4)).transpose())
     hover = np.flipud(np.reshape(hover, (7, 24 * 4)).transpose())
 
-    _max = get_chosen_gym().get_max_people(zone)
+    _max = get_chosen_gym().get_max_people(zone_id)
     _close = _max - config.CLOSE
     l = _max + 5
 
@@ -474,6 +488,7 @@ def create_main_layout(gym):
                                             id="date-picker",
                                             date=datetime.now().date(),
                                             min_date_allowed=datetime.now().date(),
+                                            max_date_allowed=datetime.now().date() + timedelta(days=gym.max_days_ahead) if gym.max_days_ahead else None,
                                             display_format="DD-MM-YYYY",
                                             clearable=False
                                         )
@@ -544,7 +559,7 @@ def create_main_layout(gym):
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            dbc.Button("<", id="prev_week", color="primary"),
+                            dbc.Button("<", id="prev_week", color="primary", disabled=True),
                             html.Span([
                                 html.Span("Week", className="ml-3 mr-1"),
                                 html.Span(datetime.now().isocalendar()[1], id="week", className="mr-3 ml-1"),

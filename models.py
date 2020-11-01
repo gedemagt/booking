@@ -60,6 +60,7 @@ class Gym(db.Model):
     max_booking_per_user = db.Column(db.Integer, nullable=True) # Number of active bookings
     max_time_per_user_per_day = db.Column(db.Integer, nullable=True) # Number of active bookings on one day
     max_number_per_booking = db.Column(db.Integer, nullable=False, default=1) # Number of persons per booking
+    max_days_ahead = db.Column(db.Integer, nullable=True)
 
     admins = db.relationship('User', secondary=gym_admins, lazy='subquery',
                              backref=db.backref('admin_gyms', lazy=True))
@@ -96,10 +97,10 @@ class Zone(db.Model):
 
 
 def try_init_db(user_manager):
-    if not os.path.exists(config.DB_PATH):
-        print("Initializing database")
 
-        db.create_all()
+    db.create_all()
+    if Gym.query.filter_by(code="TestGym").first() is None:
+        print("Initializing database")
 
         g = Gym(name="TestGym", code="TestGym")
 

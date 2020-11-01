@@ -47,6 +47,10 @@ def validate_booking(start, end, number, zone_id):
     if is_admin():
         return
 
+    if gym.max_days_ahead is not None:
+        if start.date() > datetime.now().date() + timedelta(days=gym.max_days_ahead):
+            raise AssertionError(f"Bookings can only be {gym.max_days_ahead} days into the future")
+
     overlapping = [
         x for x in current_user.bookings if
         (start <= x.start < end) or
