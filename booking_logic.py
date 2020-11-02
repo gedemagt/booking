@@ -93,18 +93,18 @@ def create_booking_map(bookings, start, end, timeslot_size=15, zone_id=None):
 
         ts = []
 
-        if b.period is None and start <= b.start and b.end <= end:
+        if b.period not in MAP.keys() and start <= b.start and b.end <= end:
             ts = [(b.start, b.end)]
         elif b.start <= end:
-
             diff = b.end - b.start
             start_ts = b.start
 
-            for dt in rrule.rrule(MAP[b.period], dtstart=start_ts, until=end-diff):
+            for dt in rrule.rrule(MAP[b.period], dtstart=start_ts, until=min(b.end_repeat, end-diff)):
                 if dt >= start:
                     ts.append((dt, dt+diff))
 
         for (start_ts, end_ts) in ts:
+
             start_idx = timeslot_index(start_ts, start, timeslot_size)
             end_idx = timeslot_index(end_ts, start, timeslot_size)
 
@@ -123,21 +123,22 @@ def get_bookings_between(start, end, zone):
         .filter(Booking.start >= start)\
         .filter(Booking.end <= end)\
         .filter_by(zone_id=zone)\
-        .filter(Booking.period is None).all()
+        .filter(Booking.period == None).all()
 
-    repeating = Booking.query\
-        .filter(Booking.start <= end)\
+    repeating = Booking.query \
         .filter_by(zone_id=zone)\
-        .filter(Booking.period is not None).all()
+        .filter(Booking.start <= end) \
+        .filter(Booking.end_repeat is None or Booking.end_repeat >= start)\
+        .filter(Booking.period != None).all()
 
     return normal, repeating
 
 
-def create_weekly_booking_map(d, zone):
+def create_weekly_booking_map(d, zone_id=None):
     week_start_day = start_of_week(d)
     week_end = week_start_day + timedelta(days=7)
 
-    bookings = itertools.chain(*get_bookings_between(week_start_day, week_end, zone))
+    bookings = itertools.chain(*get_bookings_between(week_start_day, week_end, zone_id))
 
     all_bookings, my_bookings, _ = create_booking_map(bookings, week_start_day, week_end)
 

@@ -17,7 +17,7 @@ import config
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
 from models import Booking, db, Zone
-from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
+from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date, as_datetime
 from utils import get_chosen_gym, is_admin
 
 
@@ -72,9 +72,10 @@ def on_delete():
      Output("msg", "is_open"), Output("selection_store", "data")],
     [Trigger("book", "n_clicks")],
     [State("selection_store", "data"), State("nr_bookings", "value"),
-     State("view_store", "data"), State("repeat-radio-buttons", "value")], group="ok"
+     State("view_store", "data"), State("repeat-radio-buttons", "value"),
+     State("date-picker-repeat", "date")], group="ok"
 )
-def on_booking(data, nr_bookings, view_data, radio_buttons):
+def on_booking(data, nr_bookings, view_data, radio_buttons, datepicker_repeat):
     msg = ""
     msg_color = "warning"
     if date is not None and data["f"] is not None and data["t"] is not None:
@@ -86,11 +87,14 @@ def on_booking(data, nr_bookings, view_data, radio_buttons):
             validate_booking(b_start, b_end, int(nr_bookings), view_data["zone"])
             zone = next(x for x in get_chosen_gym().zones if x.id == view_data["zone"])
             period = None
+            end_repeat = None
             if is_admin() and radio_buttons > 1:
                 period = PERIOD_MAP[radio_buttons]
-
+                end_repeat = as_datetime(datepicker_repeat)
+            print(type(period))
             db.session.add(Booking(start=b_start, end=b_end, user=current_user,
-                                   zone=zone, number=int(nr_bookings), period=period))
+                                   zone=zone, number=int(nr_bookings),
+                                   period=period, end_repeat=end_repeat))
             db.session.commit()
             msg = "Success"
             msg_color = "success"
@@ -173,7 +177,7 @@ def create_bookings():
                         ])
                     ], width=6),
                     dbc.Col([
-                        b.period.upper(),
+                        b.period.upper() if b.period else "",
                     ], width=1),
                     dbc.Col([
                         b.number,
@@ -542,6 +546,7 @@ def create_main_layout(gym):
                                 ], width=9)
                             ], justify="between", className="my-1"),
                             html.Div([
+                                html.Hr(),
                                 dbc.Row([
                                     dbc.Col([
                                         html.Span("Repeat")
@@ -562,7 +567,25 @@ def create_main_layout(gym):
                                                 ),
                                             ], style={"margin": "auto"}
                                         )
-                                    ], width=9)], justify="between", className="my-1")],
+                                    ], width=9)],
+                                    justify="between", className="my-1"
+                                ),
+                                dbc.Row([
+                                    dbc.Col([
+                                        html.Span("Until")
+                                    ], width=3, style={"margin": "auto"}),
+                                    dbc.Col([
+                                        dcc.DatePickerSingle(
+                                            id="date-picker-repeat",
+                                            date=datetime.now().date(),
+                                            min_date_allowed=datetime.now().date(),
+                                            display_format="DD-MM-YYYY",
+                                            clearable=False
+                                        )
+                                    ], width=9)],
+                                    justify="between", className="my-1"
+                                ),
+                                ],
                                 hidden=not is_admin()
                             ),
                             dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
