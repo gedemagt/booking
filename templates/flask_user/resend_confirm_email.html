@@ -2,7 +2,10 @@
 
 {% block content %}
 {% from "flask_user/_macros.html" import render_field, render_submit_field %}
-<h1>{%trans%}Resend Confirmation Email{%endtrans%}</h1>
+<h1>{%trans%}Confirm Email{%endtrans%}</h1>
+
+<p>Please confirm your e-mail by clicking on the link sent to you.</p>
+<p>If you did not receive any e-mail, please check your spam or resend with the button below.</p>
 
 <form action="" method="POST" class="form" role="form">
     {{ form.hidden_tag() }}
