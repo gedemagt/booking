@@ -469,20 +469,22 @@ def create_main_layout(gym):
                                 ], justify="between", className="my-1"),
                                 hidden=len(gym.zones) == 1
                             ),
-                            dbc.Row([
-                                dbc.Col([
-                                    html.Span(html.I(className="fa fa-user-friends"))
-                                ], width=3, style={"margin": "auto"}),
-                                dbc.Col([
-                                    dbc.Input(
-                                        value=1,
-                                        id="nr_bookings",
-                                        type="number",
-                                        min=1,
-                                        max=gym.max_number_per_booking if not is_admin() else gym.max_people
-                                    )
-                                ], width=9)
-                            ], justify="between", className="my-1"),
+                            html.Div([
+                                dbc.Row([
+                                    dbc.Col([
+                                        html.Span(html.I(className="fa fa-user-friends"))
+                                    ], width=3, style={"margin": "auto"}),
+                                    dbc.Col([
+                                        dbc.Input(
+                                            value=1,
+                                            id="nr_bookings",
+                                            type="number",
+                                            min=1,
+                                            max=gym.max_number_per_booking if not is_admin() else gym.max_people
+                                        )
+                                    ], width=9)
+                                ], justify="between", className="my-1"),
+                            ], hidden=gym.max_number_per_booking == 1),
                             dbc.Row([
                                 dbc.Col([
                                     html.Span("Day")
