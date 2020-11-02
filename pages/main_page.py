@@ -77,13 +77,19 @@ def on_booking(data, nr_bookings, view_data):
         b_end = datetime.strptime(data["t"], "%Y-%m-%dT%H:%M:%S")
 
         try:
-            validate_booking(b_start, b_end, int(nr_bookings), view_data["zone"])
+
             zone = next(x for x in get_chosen_gym().zones if x.id == view_data["zone"])
-            db.session.add(Booking(start=b_start, end=b_end, user=current_user,
-                                   zone=zone, number=int(nr_bookings)))
-            db.session.commit()
-            msg = "Success"
-            msg_color = "success"
+            nr_bookings = int(nr_bookings) if nr_bookings is not None else 1
+            if nr_bookings > get_chosen_gym().max_number_per_booking:
+                msg = f"Max persons per booking is {get_chosen_gym().max_number_per_booking}"
+                msg_color = "danger"
+            else:
+                validate_booking(b_start, b_end, nr_bookings, view_data["zone"])
+                db.session.add(Booking(start=b_start, end=b_end, user=current_user,
+                                       zone=zone, number=nr_bookings))
+                db.session.commit()
+                msg = "Success"
+                msg_color = "success"
         except AssertionError as e:
             msg = str(e)
             msg_color = "danger"
@@ -97,7 +103,7 @@ def on_booking(data, nr_bookings, view_data):
         msg = "Invalid selection"
         msg_color = "danger"
 
-    return msg, msg_color, False, data
+    return msg, msg_color, msg_color != "success", data
 
 
 @app.callback(
@@ -283,13 +289,19 @@ OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15 * x)).strftime("%
 
 @app.callback(
     [Output("msg2", "children"), Output("msg2", "color"), Output("msg2", "is_open"), Output("book", "disabled")],
-    [Input("selection_store", "data")],
+    [Input("selection_store", "data"), Trigger("nr_bookings", "value")],
     [State("nr_bookings", "value"), State("view_store", "data")]
 )
 def val_booking(data, nr, view_data):
+
     if data["f"] is not None and data["t"] is not None:
         try:
-            validate_booking(parse(data["f"]), parse(data["t"]), int(nr), view_data["zone"])
+            nr_bookings = int(nr) if nr is not None else 1
+            if nr_bookings > get_chosen_gym().max_number_per_booking:
+                msg = f"Max persons per booking is {get_chosen_gym().max_number_per_booking}"
+                return msg, "danger", True, True
+            else:
+                validate_booking(parse(data["f"]), parse(data["t"]), int(nr), view_data["zone"])
         except AssertionError as e:
             return str(e), "danger", True, True
     return "Empty", "success", False, False
