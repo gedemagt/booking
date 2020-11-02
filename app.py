@@ -2,8 +2,7 @@ import os
 
 from dash_extensions.enrich import Dash
 from flask import Flask
-from flask_user import login_required
-
+from flask_user import login_required, allow_unconfirmed_email
 
 import dash_bootstrap_components as dbc
 
@@ -30,9 +29,11 @@ fapp.config['USER_ENABLE_USERNAME'] = True
 fapp.config['USER_EMAIL_SENDER_NAME'] = 'Booking'
 fapp.config['USER_EMAIL_SENDER_EMAIL'] = 'noreply@booking.aarhusklatreklub.dk'
 
-fapp.config['USER_ENABLE_CONFIRM_EMAIL'] = False
+fapp.config['USER_AFTER_REGISTER_ENDPOINT'] = 'user.resend_email_confirmation'
+
+# fapp.config['USER_ENABLE_CONFIRM_EMAIL'] = False
 fapp.config['USER_ALLOW_LOGIN_WITHOUT_CONFIRMED_EMAIL'] = True
-fapp.config['USER_SEND_REGISTERED_EMAIL'] = False
+# fapp.config['USER_SEND_REGISTERED_EMAIL'] = False
 
 app = Dash(
     __name__,
@@ -45,4 +46,4 @@ app = Dash(
 
 for view_func in fapp.view_functions:
     if view_func.startswith('/'):
-        fapp.view_functions[view_func] = login_required(fapp.view_functions[view_func])
+        fapp.view_functions[view_func] = allow_unconfirmed_email(login_required(fapp.view_functions[view_func]))
