@@ -301,7 +301,7 @@ def val_booking(data, nr, view_data):
                 msg = f"Max persons per booking is {get_chosen_gym().max_number_per_booking}"
                 return msg, "danger", True, True
             else:
-                validate_booking(parse(data["f"]), parse(data["t"]), int(nr), view_data["zone"])
+                validate_booking(parse(data["f"]), parse(data["t"]), nr_bookings, view_data["zone"])
         except AssertionError as e:
             return str(e), "danger", True, True
     return "Empty", "success", False, False
