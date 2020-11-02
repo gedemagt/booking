@@ -38,7 +38,8 @@ app.layout = html.Div([
         brand_href="/",
         color="primary",
         dark=True,
-        id="navbar"
+        id="navbar",
+        fluid=True
     ),
     dbc.Container(html.Div(id="layout"), fluid=True)
 ])
@@ -53,6 +54,9 @@ def path(path):
     navbar_items = [
         dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
     ]
+
+    if current_user.email_confirmed_at is None:
+        return dcc.Location("some_id", "/user/resend-email-confirmation"), navbar_items, ""
 
     if current_user.role == "ADMIN":
         navbar_items.insert(0, dbc.NavItem(dcc.Link(html.I(className="fa fa-cog"), className="btn btn-primary", href="/superadmin")))
