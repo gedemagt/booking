@@ -42,7 +42,7 @@ def get_max_booking_length():
 def redraw_all(data1, data, view_data):
     d = parse(data["d"])
     return create_bookings(), create_heatmap(d, parse(data["f"]), parse(data["t"]), view_data["show"],
-                                             view_data["zone"])
+                                             Zone.query.filter_by(id=view_data["zone"]).first())
 
 
 @app.callback(
@@ -186,12 +186,12 @@ def toggle_popover(n, is_open):
     return is_open
 
 
-def create_heatmap(d, f, t, yrange, zone_id):
-    zone = Zone.query.filter_by(id=zone_id).first()
+def create_heatmap(d, f, t, yrange, zone):
+
     week_start_day = start_of_week(d)
     week_end_day = week_start_day + timedelta(days=7)
 
-    all_bookings, my_bookings = create_weekly_booking_map(d, zone_id)
+    all_bookings, my_bookings = create_weekly_booking_map(d, zone)
     hover = all_bookings.copy()
 
     x = [(week_start_day.date() + timedelta(days=x)) for x in range(7)]
@@ -220,7 +220,7 @@ def create_heatmap(d, f, t, yrange, zone_id):
     z = np.flipud(np.reshape(all_bookings, (7, 24 * 4)).transpose())
     hover = np.flipud(np.reshape(hover, (7, 24 * 4)).transpose())
 
-    _max = get_chosen_gym().get_max_people(zone_id)
+    _max = zone.get_max_people()
     _close = _max - config.CLOSE
     l = _max + 5
 
@@ -577,7 +577,7 @@ def create_main_layout(gym):
                     dbc.Col([
                         html.Div([
                             dcc.Graph(
-                                figure=create_heatmap(datetime.now(), None, None, "pm", gym.zones[0].id),
+                                figure=create_heatmap(datetime.now(), None, None, "pm", gym.zones[0]),
                                 id="main-graph",
                                 style={"height": "70vh", "width": "100%"})
                         ], className="my-3"),

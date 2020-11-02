@@ -107,7 +107,7 @@ def create_weekly_booking_map(d, zone):
     my_bookings = np.zeros(24 * 4 * 7)
 
     for b in Booking.query.filter(Booking.start >= week_start_day).filter(
-            Booking.end <= week_end).filter_by(zone_id=zone).all():
+            Booking.end <= week_end).filter_by(zone_id=zone.id).all():
         start = timeslot_index(b.start, week_start_day)
         end = timeslot_index(b.end, week_start_day)
 
