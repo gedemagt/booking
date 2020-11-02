@@ -10,3 +10,4 @@ Flask-Admin
 email_validator
 numpy
 humanize
+python-dateutil
