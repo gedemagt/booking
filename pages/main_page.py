@@ -282,7 +282,7 @@ def create_heatmap(d, f, t, yrange, zone):
     )
 
     fig.update_layout(
-        xaxis_tickformat='%a %d %b'
+        xaxis_tickformat='%a\n%d/%m'
     )
 
     return fig
