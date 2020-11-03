@@ -47,6 +47,9 @@ def validate_booking(start, end, number, zone_id):
     if is_admin():
         return
 
+    if number > (gym.max_number_per_booking if gym.max_number_per_booking else gym.max_people):
+        raise AssertionError(f"Max persons per booking is {get_chosen_gym().max_number_per_booking}")
+
     if gym.max_days_ahead is not None:
         if start.date() > datetime.now().date() + timedelta(days=gym.max_days_ahead):
             raise AssertionError(f"Bookings can only be {gym.max_days_ahead} days into the future")
