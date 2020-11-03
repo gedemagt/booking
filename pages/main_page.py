@@ -442,14 +442,22 @@ def on_screen_width(s):
     return screen_width < 768
 
 
-def get_max_nr_per_booking(gym):
+@app.callback(
+    Output("nr_bookings", "options"),
+    Input("view_store", "data")
+)
+def nr_bookings_options(view_data):
+    zone = Zone.query.filter_by(id=view_data["zone"]).first()
+
     if is_admin():
-        return gym.max_people
+        max_nr = zone.max_people if zone.max_people is not None else zone.gym.max_people
     else:
-        if gym.max_number_per_booking is not None:
-            return gym.max_number_per_booking
+        if zone.gym.max_number_per_booking is not None:
+            max_nr = zone.gym.max_number_per_booking
         else:
-            return gym.max_people
+            max_nr = zone.max_people if zone.max_people is not None else zone.gym.max_people
+
+    return [{"value": x, "label": x} for x in range(1, max_nr+1)]
 
 
 def create_main_layout(gym):
@@ -489,8 +497,7 @@ def create_main_layout(gym):
                                         dcc.Dropdown(
                                             id="nr_bookings",
                                             value=1,
-                                            options=[{"value": x, "label": x}
-                                                     for x in range(1, get_max_nr_per_booking(gym)+1)],
+                                            options=[{"value": 1, "label": 1}],
                                             clearable=False
                                         )
                                     ], width=9)
