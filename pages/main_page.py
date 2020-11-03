@@ -77,19 +77,13 @@ def on_booking(data, nr_bookings, view_data):
         b_end = datetime.strptime(data["t"], "%Y-%m-%dT%H:%M:%S")
 
         try:
-
             zone = next(x for x in get_chosen_gym().zones if x.id == view_data["zone"])
-            nr_bookings = int(nr_bookings) if nr_bookings is not None else 1
-            if nr_bookings > get_chosen_gym().max_number_per_booking:
-                msg = f"Max persons per booking is {get_chosen_gym().max_number_per_booking}"
-                msg_color = "danger"
-            else:
-                validate_booking(b_start, b_end, nr_bookings, view_data["zone"])
-                db.session.add(Booking(start=b_start, end=b_end, user=current_user,
-                                       zone=zone, number=nr_bookings))
-                db.session.commit()
-                msg = "Success"
-                msg_color = "success"
+            validate_booking(b_start, b_end, nr_bookings, view_data["zone"])
+            db.session.add(Booking(start=b_start, end=b_end, user=current_user,
+                                   zone=zone, number=nr_bookings))
+            db.session.commit()
+            msg = "Success"
+            msg_color = "success"
         except AssertionError as e:
             msg = str(e)
             msg_color = "danger"
@@ -296,12 +290,7 @@ def val_booking(data, nr, view_data):
 
     if data["f"] is not None and data["t"] is not None:
         try:
-            nr_bookings = int(nr) if nr is not None else 1
-            if nr_bookings > get_chosen_gym().max_number_per_booking:
-                msg = f"Max persons per booking is {get_chosen_gym().max_number_per_booking}"
-                return msg, "danger", True, True
-            else:
-                validate_booking(parse(data["f"]), parse(data["t"]), nr_bookings, view_data["zone"])
+            validate_booking(parse(data["f"]), parse(data["t"]), nr, view_data["zone"])
         except AssertionError as e:
             return str(e), "danger", True, True
     return "Empty", "success", False, False
@@ -453,6 +442,16 @@ def on_screen_width(s):
     return screen_width < 768
 
 
+def get_max_nr_per_booking(gym):
+    if is_admin():
+        return gym.max_people
+    else:
+        if gym.max_number_per_booking is not None:
+            return gym.max_number_per_booking
+        else:
+            return gym.max_people
+
+
 def create_main_layout(gym):
     return dbc.Row([
         html.Div(id="dummy", hidden=True),
@@ -487,16 +486,16 @@ def create_main_layout(gym):
                                         html.Span(html.I(className="fa fa-user-friends"))
                                     ], width=3, style={"margin": "auto"}),
                                     dbc.Col([
-                                        dbc.Input(
-                                            value=1,
+                                        dcc.Dropdown(
                                             id="nr_bookings",
-                                            type="number",
-                                            min=1,
-                                            max=gym.max_number_per_booking if not is_admin() else gym.max_people
+                                            value=1,
+                                            options=[{"value": x, "label": x}
+                                                     for x in range(1, get_max_nr_per_booking(gym)+1)],
+                                            clearable=False
                                         )
                                     ], width=9)
                                 ], justify="between", className="my-1"),
-                            ], hidden=gym.max_number_per_booking == 1),
+                            ], hidden=gym.max_number_per_booking == 1 and not is_admin()),
                             dbc.Row([
                                 dbc.Col([
                                     html.Span("Day")
