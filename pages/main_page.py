@@ -101,8 +101,24 @@ def on_booking(data, nr_bookings, view_data):
 
 
 @app.callback(
-    [Output("selection_store", "data"), Output("week", "children"),
-     Output("next_week", "disabled"), Output("prev_week", "disabled")],
+    [Output("week", "children"), Output("next_week", "disabled"), Output("prev_week", "disabled")],
+    [Input("selection_store", "data"), Input("view_store", "data"), Trigger("location", "pathname")]
+)
+def update_week(data, view_data):
+
+    d = parse(data["d"])
+    zone = Zone.query.filter_by(id=view_data["zone"]).first()
+
+    can_next_week = is_admin() or \
+                    zone.gym.max_days_ahead is None or \
+                    datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d + timedelta(days=7)
+    can_prev_week = datetime.now() < d
+
+    return d.isocalendar()[1], not can_next_week, not can_prev_week
+
+
+@app.callback(
+    [Output("selection_store", "data")],
     [Trigger("prev_week", "n_clicks"), Trigger("next_week", "n_clicks")],
     [State("selection_store", "data"), State("view_store", "data")], group="ok"
 )
@@ -124,12 +140,7 @@ def on_week(data, view_data):
         if datetime.now() < d:
             data["d"] = d = d - timedelta(days=7)
 
-    can_next_week = is_admin() or \
-                    zone.gym.max_days_ahead is None or \
-                    datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7)
-    can_prev_week = datetime.now() < d
-
-    return data, d.isocalendar()[1], not can_next_week, not can_prev_week
+    return data
 
 
 def create_bookings():
