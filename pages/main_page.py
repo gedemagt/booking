@@ -239,14 +239,17 @@ def create_heatmap(d, f, t, yrange, zone_id):
         y_range = [12 * 4, 24 * 4]
     elif yrange == "pm":
         y_range = [0 * 4, 12 * 4]
+    elif yrange == "peak":
+        y_range = [1*4, 9 * 4]
     else:
         y_range = [0, 24 * 4]
+
 
     fig = go.Figure(
         layout=go.Layout(
             margin=dict(t=0, r=0, l=0, b=0),
             xaxis=dict(fixedrange=True, mirror="allticks", side="top"),
-            yaxis=dict(fixedrange=True, range=y_range),
+            yaxis=dict(fixedrange=True, range=[x - 0.5 for x in y_range]),
 
         ),
         data=go.Heatmap(
@@ -272,6 +275,13 @@ def create_heatmap(d, f, t, yrange, zone_id):
             ]
         )
     )
+
+    # if yrange == "peak":
+    #     for _y in range(y_range[0], y_range[1]):
+    #         for _x in range(7):
+    #             fig.add_annotation(x=x[_x], y=y[_y],
+    #                                text=f"{int(hover[_y][_x])}",
+    #                                showarrow=False)
 
     fig.update_layout(
         yaxis=dict(
@@ -409,7 +419,10 @@ def update_inputs(data, prev_from, prev_to, prev_date):
 
 @app.callback(
     Output("view_store", "data"),
-    [Trigger("show-all", "n_clicks"), Trigger("show-am", "n_clicks"), Trigger("show-pm", "n_clicks"),
+    [Trigger("show-all", "n_clicks"), Trigger("show-am", "n_clicks"),
+     Trigger("show-pm", "n_clicks"), Trigger("show-peak", "n_clicks"),
+     Trigger("show-all-2", "n_clicks"), Trigger("show-am-2", "n_clicks"),
+     Trigger("show-pm-2", "n_clicks"), Trigger("show-peak-2", "n_clicks"),
      Trigger("zone-picker", "value")],
     [State("view_store", "data")]
 )
@@ -422,12 +435,14 @@ def show_selection(data):
         if trig.n_clicks is None:
             raise PreventUpdate
 
-        if trig.id == "show-all":
+        if trig.id.startswith("show-all"):
             data["show"] = "all"
-        elif trig.id == "show-am":
+        elif trig.id.startswith("show-am"):
             data["show"] = "am"
-        elif trig.id == "show-pm":
+        elif trig.id.startswith("show-pm"):
             data["show"] = "pm"
+        elif trig.id.startswith("show-peak"):
+            data["show"] = "peak"
 
     return data
 
@@ -580,19 +595,36 @@ def create_main_layout(gym):
         ], width=12, lg=3),
         dbc.Col([
             dbc.Container([
-                dbc.Row([
+                html.Div([dbc.Row([
                     dbc.Col([
 
-                    ], width=8, sm=4),
+                        dbc.Row([dbc.Badge("Availability", color="white", className="mx-1")]),
+                        dbc.Row([
+                            dbc.Badge(f"More than {config.CLOSE}", color="primary", className="mx-1"),
+                            dbc.Badge(f"1 to {config.CLOSE}", color="warning", className="mx-1"),
+                            dbc.Badge("Full", color="danger", className="mx-1")
+                        ])
+
+                    ], width=8),
                     dbc.Col([
                         dbc.DropdownMenu([
-                            dbc.DropdownMenuItem("24h", id="show-all"),
-                            dbc.DropdownMenuItem("AM", id="show-am"),
-                            dbc.DropdownMenuItem("PM", id="show-pm")
+                            dbc.DropdownMenuItem("24h", id="show-all-2"),
+                            dbc.DropdownMenuItem("AM", id="show-am-2"),
+                            dbc.DropdownMenuItem("PM", id="show-pm-2"),
+                            dbc.DropdownMenuItem("Peak", id="show-peak-2")
                         ], label="\u231A", color="primary")
-                    ], width=4, sm=8, style={"text-align": "right"})
-                ], justify="between", className="my-3"),
+                    ], width=4, style={"text-align": "right"})
+                ], justify="between", className="my-3"),], className=" d-block d-md-none"),
+
                 dbc.Row([
+                    dbc.Col([
+                        dbc.Row([dbc.Badge("Availability", color="white", className="mx-1")]),
+                        dbc.Row([
+                            dbc.Badge(f"More than {config.CLOSE}", color="primary", className="mx-1"),
+                            dbc.Badge(f"1 to {config.CLOSE}", color="warning", className="mx-1"),
+                            dbc.Badge("Full", color="danger", className="mx-1")
+                        ])
+                    ], style={"margin-top": "auto"}, width=3, className="d-none d-md-block"),
                     dbc.Col([
                         html.Div([
                             dbc.Button("<", id="prev_week", color="primary", disabled=True),
@@ -602,18 +634,27 @@ def create_main_layout(gym):
                             ]),
                             dbc.Button(">", id="next_week", color="primary")
                         ], style={"text-align": "center"})
-                    ], width=12)
+                    ], width=12, md=6),
+                    dbc.Col([
+                        dbc.DropdownMenu([
+                            dbc.DropdownMenuItem("24h", id="show-all"),
+                            dbc.DropdownMenuItem("AM", id="show-am"),
+                            dbc.DropdownMenuItem("PM", id="show-pm"),
+                            dbc.DropdownMenuItem("Peak", id="show-peak")
+                        ], label="\u231A", color="primary")
+                    ], width=3, style={"text-align": "right"}, className="d-none d-md-block")
                 ], justify="between", className="my-3"),
                 dbc.Row([
                     dbc.Col([
                         html.Div([
                             dcc.Graph(
-                                figure=create_heatmap(datetime.now(), None, None, "pm", gym.zones[0].id),
+                                figure=create_heatmap(datetime.now(), None, None, "peak", gym.zones[0].id),
                                 id="main-graph",
                                 style={"height": "70vh", "width": "100%"})
                         ], className="my-3"),
                     ], width=12),
                 ], justify="between"),
+
             ], fluid=True)
         ], width=12, lg=7),
     ], className="p-3")
