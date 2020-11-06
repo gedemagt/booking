@@ -1,3 +1,4 @@
+from dash.dependencies import State
 from flask_login import current_user
 
 from app import app, fapp
@@ -15,7 +16,7 @@ import dash_html_components as html
 import dash_bootstrap_components as dbc
 from dash_extensions.enrich import Output, Input
 
-from utils import is_admin, get_chosen_gym
+from utils import is_admin, get_chosen_gym, zone_exists
 
 init_flask_admin()
 
@@ -29,7 +30,7 @@ app.layout = html.Div([
     dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(),
                                           "source": None}),
     dcc.Store(id="bookings_store", data={}),
-    dcc.Store(id="view_store", data={"show": "peak", "zone": None}),
+    dcc.Store(id="view_store", data={"show": "peak", "zone": None}, storage_type="local"),
     dcc.Location(id="location"),
     html.Div(id="redirect"),
     dbc.NavbarSimple(

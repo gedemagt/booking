@@ -18,8 +18,7 @@ from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
 from models import Booking, db, Zone
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
-from utils import get_chosen_gym, is_admin
-
+from utils import get_chosen_gym, is_admin, get_zone, zone_exists
 
 BOOTSTRAP_BLUE = "#0275d8"
 BOOTSTRAP_GREEN = "#5cb85c"
@@ -84,6 +83,9 @@ def on_booking(data, nr_bookings, view_data):
             db.session.commit()
             msg = "Success"
             msg_color = "success"
+        except StopIteration as e:
+            msg = "The zone has been removed. Please refresh page and try again."
+            msg_color = "danger"
         except AssertionError as e:
             msg = str(e)
             msg_color = "danger"
@@ -107,7 +109,7 @@ def on_booking(data, nr_bookings, view_data):
 def update_week(data, view_data):
 
     d = parse(data["d"])
-    zone = Zone.query.filter_by(id=view_data["zone"]).first()
+    zone = get_zone(view_data["zone"])
 
     can_next_week = is_admin() or \
                     zone.gym.max_days_ahead is None or \
@@ -129,7 +131,7 @@ def on_week(data, view_data):
 
     d = parse(data["d"])
 
-    zone = Zone.query.filter_by(id=view_data["zone"]).first()
+    zone = get_zone(view_data["zone"])
 
     if trig.id == "next_week":
         if is_admin() or \
@@ -198,7 +200,7 @@ def toggle_popover(n, is_open):
 
 
 def create_heatmap(d, f, t, yrange, zone_id):
-    zone = Zone.query.filter_by(id=zone_id).first()
+    zone = get_zone(zone_id)
     week_start_day = start_of_week(d)
     week_end_day = week_start_day + timedelta(days=7)
 
@@ -473,7 +475,7 @@ def on_screen_width(s):
     Input("view_store", "data")
 )
 def nr_bookings_options(view_data):
-    zone = Zone.query.filter_by(id=view_data["zone"]).first()
+    zone = get_zone(view_data["zone"])
 
     if is_admin():
         max_nr = zone.max_people if zone.max_people is not None else zone.gym.max_people

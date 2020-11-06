@@ -6,7 +6,7 @@ from flask_login import current_user
 
 from models import Booking, Zone
 from time_utils import start_of_day, start_of_week, timeslot_index
-from utils import get_chosen_gym, is_admin
+from utils import get_chosen_gym, is_admin, get_zone
 
 
 def create_from_to(f, t):
@@ -26,7 +26,7 @@ def create_daily_from_to(f, t):
 def validate_booking(start, end, number, zone_id):
 
     gym = get_chosen_gym()
-    zone = Zone.query.filter_by(id=zone_id).first()
+    zone = get_zone(zone_id)
 
     # First we check general stuff
     if start.date() != end.date():
