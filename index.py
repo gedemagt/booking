@@ -1,4 +1,3 @@
-from dash.dependencies import State
 from flask_login import current_user
 
 from app import app, fapp
@@ -16,7 +15,7 @@ import dash_html_components as html
 import dash_bootstrap_components as dbc
 from dash_extensions.enrich import Output, Input
 
-from utils import is_admin, get_chosen_gym, zone_exists
+from utils import is_admin, get_chosen_gym
 
 init_flask_admin()
 

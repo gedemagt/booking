@@ -76,16 +76,12 @@ def on_booking(data, nr_bookings, view_data):
         b_end = datetime.strptime(data["t"], "%Y-%m-%dT%H:%M:%S")
 
         try:
-            zone = next(x for x in get_chosen_gym().zones if x.id == view_data["zone"])
             validate_booking(b_start, b_end, nr_bookings, view_data["zone"])
             db.session.add(Booking(start=b_start, end=b_end, user=current_user,
-                                   zone=zone, number=nr_bookings))
+                                   zone=get_zone(view_data["zone"]), number=nr_bookings))
             db.session.commit()
             msg = "Success"
             msg_color = "success"
-        except StopIteration as e:
-            msg = "The zone has been removed. Please refresh page and try again."
-            msg_color = "danger"
         except AssertionError as e:
             msg = str(e)
             msg_color = "danger"

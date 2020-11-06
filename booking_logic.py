@@ -26,6 +26,9 @@ def create_daily_from_to(f, t):
 def validate_booking(start, end, number, zone_id):
 
     gym = get_chosen_gym()
+    if zone_id not in [x.id for x in gym.zones]:
+        raise AssertionError("The zone has been removed. Please refresh page and try again.")
+
     zone = get_zone(zone_id)
 
     # First we check general stuff
