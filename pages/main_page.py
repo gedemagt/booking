@@ -539,7 +539,8 @@ def create_main_layout(gym):
                                             min_date_allowed=datetime.now().date(),
                                             max_date_allowed=datetime.now().date() + timedelta(days=gym.max_days_ahead) if not is_admin() and gym.max_days_ahead else None,
                                             display_format="DD-MM-YYYY",
-                                            clearable=False
+                                            clearable=False,
+                                            first_day_of_week=1
                                         )
                                     ])
                                 ], width=9)
