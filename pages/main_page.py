@@ -23,7 +23,8 @@ from utils import get_chosen_gym, is_admin, get_zone, zone_exists
 BOOTSTRAP_BLUE = "#0275d8"
 BOOTSTRAP_GREEN = "#5cb85c"
 BOOTSTRAP_LIGHT_BLUE = "#5bc0de"
-BOOTSTRAP_YELLOW = "#f0ad4e"
+BOOTSTRAP_ORANGE = "#f0ad4e"
+BOOTSTRAP_YELLOW = "#f0e24e"
 BOOTSTRAP_RED = "#d9534f"
 
 
@@ -231,6 +232,7 @@ def create_heatmap(d, f, t, yrange, zone_id):
 
     _max = get_chosen_gym().get_max_people(zone_id)
     _close = _max - config.CLOSE
+    _next_to_close = _max - 2*config.CLOSE
     l = _max + 5
 
     if yrange == "am":
@@ -267,8 +269,9 @@ def create_heatmap(d, f, t, yrange, zone_id):
                 (0.0, "grey"), (1 / l, "grey"),
                 (1 / l, BOOTSTRAP_LIGHT_BLUE), (2 / l, BOOTSTRAP_LIGHT_BLUE),
                 (2 / l, BOOTSTRAP_GREEN), (5 / l, BOOTSTRAP_GREEN),
-                (5 / l, BOOTSTRAP_BLUE), ((_close + 5) / l, BOOTSTRAP_BLUE),
-                ((_close + 5) / l, BOOTSTRAP_YELLOW), (0.99, BOOTSTRAP_YELLOW),
+                (5 / l, BOOTSTRAP_BLUE), ((_next_to_close + 5) / l, BOOTSTRAP_BLUE),
+                ((_next_to_close + 5) / l, BOOTSTRAP_YELLOW), ((_close + 5) / l, BOOTSTRAP_YELLOW),
+                ((_close + 5) / l, BOOTSTRAP_ORANGE), (0.99, BOOTSTRAP_ORANGE),
                 (0.99, BOOTSTRAP_RED), (1.0, BOOTSTRAP_RED)
             ]
         )
@@ -416,19 +419,41 @@ def update_inputs(data, prev_from, prev_to, prev_date):
 
 
 @app.callback(
+    [Output("prev-zone", "disabled"), Output("next-zone", "disabled"),
+     Output("mobile-zone", "children"), Output("zone-picker", "value")],
+    [Input("view_store", "data")]
+)
+def update_zone(data):
+    zone = get_zone(data["zone"])
+    return zone.gym.zones[-1].id != zone.id, zone.gym.zones[0].id != zone.id, zone.name, zone.id
+
+
+@app.callback(
     Output("view_store", "data"),
     [Trigger("show-all", "n_clicks"), Trigger("show-am", "n_clicks"),
      Trigger("show-pm", "n_clicks"), Trigger("show-peak", "n_clicks"),
      Trigger("show-all-2", "n_clicks"), Trigger("show-am-2", "n_clicks"),
      Trigger("show-pm-2", "n_clicks"), Trigger("show-peak-2", "n_clicks"),
-     Trigger("zone-picker", "value")],
+     Trigger("zone-picker", "value"),
+     Trigger("next-zone", "n_clicks"), Trigger("prev-zone", "n_clicks")],
     [State("view_store", "data")]
 )
 def show_selection(data):
     trig = get_triggered()
 
+    zone = get_zone(data["zone"])
+    # Find current zone index:
+    current_idx = 0
+    for idx, zone in enumerate(zone.gym.zones):
+        if zone.id == data["zone"]:
+            current_idx = idx
+
     if trig.id == "zone-picker":
         data["zone"] = trig.value
+    elif trig.id == "next-zone" and current_idx < len(zone.gym.zones) - 1:
+        data["zone"] = zone.gym.zones[current_idx + 1].id
+    elif trig.id == "prev-zone" and current_idx > 0:
+        data["zone"] = zone.gym.zones[current_idx - 1].id
     else:
         if trig.n_clicks is None:
             raise PreventUpdate
@@ -448,7 +473,6 @@ def show_selection(data):
 app.clientside_callback(
     """
     function placeholder(date) {
-        document.getElementById("date").setAttribute("readonly", "readonly");
         return [screen.width];
     }
     """,
@@ -484,6 +508,27 @@ def nr_bookings_options(view_data):
     return [{"value": x, "label": x} for x in range(1, max_nr+1)]
 
 
+def create_zone_picker(id, gym):
+    return html.Div(
+        dbc.Row([
+            dbc.Col([
+                html.Span("Zone")
+            ], width=3, style={"margin": "auto"}),
+            dbc.Col([
+                dcc.Dropdown(
+                    id=id,
+                    options=[{"label": x.name, "value": x.id} for x in gym.zones],
+                    value=gym.zones[0].id,
+                    clearable=False,
+                    searchable=False,
+                    style={"width": "100%"}
+                )
+            ], width=9)
+        ], justify="between", className="my-1"),
+        hidden=len(gym.zones) == 1
+    )
+
+
 def create_main_layout(gym):
     return dbc.Row([
         html.Div(id="dummy", hidden=True),
@@ -494,24 +539,7 @@ def create_main_layout(gym):
                     dbc.Card([
                         dbc.CardHeader("New booking"),
                         dbc.CardBody([
-                            html.Div(
-                                dbc.Row([
-                                    dbc.Col([
-                                        html.Span("Zone")
-                                    ], width=3, style={"margin": "auto"}),
-                                    dbc.Col([
-                                        dcc.Dropdown(
-                                            id="zone-picker",
-                                            options=[{"label": x.name, "value": x.id} for x in gym.zones],
-                                            value=gym.zones[0].id,
-                                            clearable=False,
-                                            searchable=False,
-                                            style={"width": "100%"}
-                                        )
-                                    ], width=9)
-                                ], justify="between", className="my-1"),
-                                hidden=len(gym.zones) == 1
-                            ),
+                            create_zone_picker("zone-picker", gym),
                             html.Div([
                                 dbc.Row([
                                     dbc.Col([
@@ -597,11 +625,13 @@ def create_main_layout(gym):
                 html.Div([dbc.Row([
                     dbc.Col([
 
-                        dbc.Row([dbc.Badge("Availability", color="white", className="mx-1")]),
+                        dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1")]),
                         dbc.Row([
-                            dbc.Badge(f"More than {config.CLOSE}", color="primary", className="mx-1"),
-                            dbc.Badge(f"1 to {config.CLOSE}", color="warning", className="mx-1"),
-                            dbc.Badge("Full", color="danger", className="mx-1")
+                            dbc.Badge("Full", color="danger", className="mx-1"),
+                            dbc.Badge(f"1-{config.CLOSE}", color="warning", className="mx-1"),
+                            dbc.Badge(f"{config.CLOSE + 1}-{config.CLOSE * 2}", className="mx-1",
+                                      style={"background-color": BOOTSTRAP_YELLOW, "color": "black"}),
+                            dbc.Badge(f"{2 * config.CLOSE + 1}+", color="primary", className="mx-1")
                         ])
 
                     ], width=8),
@@ -617,21 +647,23 @@ def create_main_layout(gym):
 
                 dbc.Row([
                     dbc.Col([
-                        dbc.Row([dbc.Badge("Availability", color="white", className="mx-1")]),
+                        dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1")]),
                         dbc.Row([
-                            dbc.Badge(f"More than {config.CLOSE}", color="primary", className="mx-1"),
-                            dbc.Badge(f"1 to {config.CLOSE}", color="warning", className="mx-1"),
-                            dbc.Badge("Full", color="danger", className="mx-1")
+                            dbc.Badge("Full", color="danger", className="mx-1"),
+                            dbc.Badge(f"1-{config.CLOSE}", color="warning", className="mx-1"),
+                            dbc.Badge(f"{config.CLOSE+1}-{config.CLOSE*2}", className="mx-1",
+                                      style={"background-color": BOOTSTRAP_YELLOW, "color": "black"}),
+                            dbc.Badge(f"{2*config.CLOSE+1}+", color="primary", className="mx-1")
                         ])
                     ], style={"margin-top": "auto"}, width=3, className="d-none d-md-block"),
                     dbc.Col([
                         html.Div([
-                            dbc.Button("<", id="prev_week", color="primary", disabled=True),
+                            dbc.Button("<", id="prev_week", color="primary", disabled=True, size="sm"),
                             html.Span([
                                 html.Span("Week", className="ml-3 mr-1"),
                                 html.Span(datetime.now().isocalendar()[1], id="week", className="mr-3 ml-1"),
                             ]),
-                            dbc.Button(">", id="next_week", color="primary")
+                            dbc.Button(">", id="next_week", color="primary", size="sm")
                         ], style={"text-align": "center"})
                     ], width=12, md=6),
                     dbc.Col([
@@ -643,6 +675,17 @@ def create_main_layout(gym):
                         ], label="\u231A", color="primary")
                     ], width=3, style={"text-align": "right"}, className="d-none d-md-block")
                 ], justify="between", className="my-3"),
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("<", id="prev-zone", color="primary", size="sm"),
+                            html.Span([
+                                html.Span(id="mobile-zone", className="mx-3"),
+                            ]),
+                            dbc.Button(">", id="next-zone", color="primary", size="sm")
+                        ], style={"text-align": "center"})
+                    ], width=12)
+                ], justify="around", className="d-block d-md-none"),
                 dbc.Row([
                     dbc.Col([
                         html.Div([
