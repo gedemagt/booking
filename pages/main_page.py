@@ -50,7 +50,7 @@ def redraw_all(data, view_data):
     zone_id = view_data["zone"]
     _max = get_chosen_gym().get_max_people(zone_id)
     x, y, z, hover = create_heatmap(d, parse(data["f"]), parse(data["t"]), zone_id)
-    return {"x": x, "y": y, "z": z, "max": _max, "close": config.CLOSE, "hover": _max - hover}
+    return {"x": x, "y": y, "z": z, "max": _max, "close": config.CLOSE, "hover": hover}
 
 
 @app.callback(
@@ -584,10 +584,11 @@ def create_main_layout(gym):
                         dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1")]),
                         dbc.Row([
                             dbc.Badge("Full", color="danger", className="mx-1"),
-                            dbc.Badge(f"1-{config.CLOSE}", color="warning", className="mx-1"),
-                            dbc.Badge(f"{config.CLOSE + 1}-{config.CLOSE * 2}", className="mx-1",
+                            dbc.Badge(f"1", color="warning", className="mx-1"),
+                            dbc.Badge(f"2-3", className="mx-1",
                                       style={"background-color": BOOTSTRAP_YELLOW, "color": "black"}),
-                            dbc.Badge(f"{2 * config.CLOSE + 1}+", color="primary", className="mx-1")
+                            dbc.Badge(f"4+", color="primary", className="mx-1"),
+                            dbc.Badge(f"Booked", color="success", className="mx-1")
                         ])
 
                     ], width=6),
@@ -603,17 +604,18 @@ def create_main_layout(gym):
                             ], label="\u231A", color="primary")
                         ], justify="end")
                     ], width=6, style={"text-align": "right"})
-                ], justify="between", className="my-3"),], className=" d-block d-md-none"),
+                ], justify="between", className="my-3")], className=" d-block d-md-none"),
 
                 dbc.Row([
                     dbc.Col([
                         dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1")]),
                         dbc.Row([
                             dbc.Badge("Full", color="danger", className="mx-1"),
-                            dbc.Badge(f"1-{config.CLOSE}", color="warning", className="mx-1"),
-                            dbc.Badge(f"{config.CLOSE+1}-{config.CLOSE*2}", className="mx-1",
+                            dbc.Badge(f"1", color="warning", className="mx-1"),
+                            dbc.Badge(f"2-3", className="mx-1",
                                       style={"background-color": BOOTSTRAP_YELLOW, "color": "black"}),
-                            dbc.Badge(f"{2*config.CLOSE+1}+", color="primary", className="mx-1")
+                            dbc.Badge(f"4+", color="primary", className="mx-1"),
+                            dbc.Badge(f"Booked", color="success", className="mx-1")
                         ])
                     ], style={"margin-top": "auto"}, width=3, className="d-none d-md-block"),
                     dbc.Col([

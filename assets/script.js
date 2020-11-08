@@ -31,7 +31,7 @@ function set_fig(data, view_data) {
                     annotations.push({
                         x: data.x[j],
                         y: data.y[i],
-                        text: data.hover[i][j],
+                        text: data.max - data.hover[i][j],
                         font: {color: 'rgb(255,255,255)'},
                         showarrow: false
                     });
@@ -48,7 +48,7 @@ function set_fig(data, view_data) {
             x: data.x,
             y: data.y,
             text: data.hover,
-            hovertemplate: "%{y}: %{text}",
+            hovertemplate: "%{y}: %{text}/" + data.max,
             showscale: false,
             hoverongaps: false,
             zmin: -5,
@@ -60,9 +60,9 @@ function set_fig(data, view_data) {
                 [0.0, 'rgb(192,192,192)'], [1.0/l, 'rgb(192,192,192)'],
                 [1.0/l, BOOTSTRAP_LIGHT_BLUE], [2.0/l, BOOTSTRAP_LIGHT_BLUE],
                 [2.0/l, BOOTSTRAP_GREEN], [5.0/l, BOOTSTRAP_GREEN],
-                [5.0/l, BOOTSTRAP_BLUE], [(l - 2*data.close)/l, BOOTSTRAP_BLUE],
-                [(l - 2*data.close)/l, BOOTSTRAP_YELLOW], [(l-data.close)/l, BOOTSTRAP_YELLOW],
-                [(l-data.close)/l, BOOTSTRAP_ORANGE], [0.99, BOOTSTRAP_ORANGE],
+                [5.0/l, BOOTSTRAP_BLUE], [(l - 4)/l, BOOTSTRAP_BLUE],
+                [(l - 3)/l, BOOTSTRAP_YELLOW], [(l-2)/l, BOOTSTRAP_YELLOW],
+                [(l-1)/l, BOOTSTRAP_ORANGE], [0.99, BOOTSTRAP_ORANGE],
                 [0.99, BOOTSTRAP_RED], [1.0, BOOTSTRAP_RED]
             ]
           }],
