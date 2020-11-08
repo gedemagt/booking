@@ -581,14 +581,14 @@ def create_main_layout(gym):
             dbc.Container([
                 html.Div([dbc.Row([
                     dbc.Col([
-                        dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1")]),
+                        dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1 mb-1")]),
                         dbc.Row([
-                            dbc.Badge("Full", color="danger", className="mx-1"),
-                            dbc.Badge(f"1", color="warning", className="mx-1"),
-                            dbc.Badge(f"2-3", className="mx-1",
+                            dbc.Badge("Full", color="danger", className="mx-1 mb-1"),
+                            dbc.Badge(f"1", color="warning", className="mx-1 mb-1"),
+                            dbc.Badge(f"2-3", className="mx-1 mb-1",
                                       style={"background-color": BOOTSTRAP_YELLOW, "color": "black"}),
-                            dbc.Badge(f"4+", color="primary", className="mx-1"),
-                            dbc.Badge(f"Booked", color="success", className="mx-1")
+                            dbc.Badge(f"4+", color="primary", className="mx-1 mb-1"),
+                            dbc.Badge(f"Booked", color="success", className="mx-1 mb-1")
                         ])
 
                     ], width=6),
@@ -608,14 +608,14 @@ def create_main_layout(gym):
 
                 dbc.Row([
                     dbc.Col([
-                        dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1")]),
+                        dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1 mb-1")]),
                         dbc.Row([
-                            dbc.Badge("Full", color="danger", className="mx-1"),
-                            dbc.Badge(f"1", color="warning", className="mx-1"),
-                            dbc.Badge(f"2-3", className="mx-1",
+                            dbc.Badge("Full", color="danger", className="mx-1 mb-1"),
+                            dbc.Badge(f"1", color="warning", className="mx-1 mb-1"),
+                            dbc.Badge(f"2-3", className="mx-1 mb-1",
                                       style={"background-color": BOOTSTRAP_YELLOW, "color": "black"}),
-                            dbc.Badge(f"4+", color="primary", className="mx-1"),
-                            dbc.Badge(f"Booked", color="success", className="mx-1")
+                            dbc.Badge(f"4+", color="primary", className="mx-1 mb-1"),
+                            dbc.Badge(f"Booked", color="success", className="mx-1 mb-1")
                         ])
                     ], style={"margin-top": "auto"}, width=3, className="d-none d-md-block"),
                     dbc.Col([
