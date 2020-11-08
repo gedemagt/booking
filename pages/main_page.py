@@ -49,9 +49,8 @@ def redraw_all(data, view_data):
     d = parse(data["d"])
     zone_id = view_data["zone"]
     _max = get_chosen_gym().get_max_people(zone_id)
-    _close = _max - config.CLOSE
     x, y, z, hover = create_heatmap(d, parse(data["f"]), parse(data["t"]), zone_id)
-    return {"x": x, "y": y, "z": z, "max": _max, "close": _close, "hover": hover}
+    return {"x": x, "y": y, "z": z, "max": _max, "close": config.CLOSE, "hover": _max - hover}
 
 
 @app.callback(
@@ -582,7 +581,6 @@ def create_main_layout(gym):
             dbc.Container([
                 html.Div([dbc.Row([
                     dbc.Col([
-
                         dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1")]),
                         dbc.Row([
                             dbc.Badge("Full", color="danger", className="mx-1"),
@@ -592,15 +590,19 @@ def create_main_layout(gym):
                             dbc.Badge(f"{2 * config.CLOSE + 1}+", color="primary", className="mx-1")
                         ])
 
-                    ], width=8),
+                    ], width=6),
                     dbc.Col([
-                        dbc.DropdownMenu([
-                            dbc.DropdownMenuItem("24h", id="show-all-2"),
-                            dbc.DropdownMenuItem("AM", id="show-am-2"),
-                            dbc.DropdownMenuItem("PM", id="show-pm-2"),
-                            dbc.DropdownMenuItem("Peak", id="show-peak-2")
-                        ], label="\u231A", color="primary")
-                    ], width=4, style={"text-align": "right"})
+                        dbc.Row([
+                            dbc.Button(html.I(className="fa fa-users"), id="show-text-2",
+                                       className="mx-1", color="primary"),
+                            dbc.DropdownMenu([
+                                dbc.DropdownMenuItem("24h", id="show-all-2"),
+                                dbc.DropdownMenuItem("AM", id="show-am-2"),
+                                dbc.DropdownMenuItem("PM", id="show-pm-2"),
+                                dbc.DropdownMenuItem("Peak", id="show-peak-2")
+                            ], label="\u231A", color="primary")
+                        ], justify="end")
+                    ], width=6, style={"text-align": "right"})
                 ], justify="between", className="my-3"),], className=" d-block d-md-none"),
 
                 dbc.Row([
@@ -625,12 +627,16 @@ def create_main_layout(gym):
                         ], style={"text-align": "center"})
                     ], width=12, md=6),
                     dbc.Col([
-                        dbc.DropdownMenu([
-                            dbc.DropdownMenuItem("24h", id="show-all"),
-                            dbc.DropdownMenuItem("AM", id="show-am"),
-                            dbc.DropdownMenuItem("PM", id="show-pm"),
-                            dbc.DropdownMenuItem("Peak", id="show-peak")
-                        ], label="\u231A", color="primary")
+                        dbc.Row([
+                            dbc.Button(html.I(className="fa fa-users"), id="show-text",
+                                       className="mx-1", color="primary"),
+                            dbc.DropdownMenu([
+                                dbc.DropdownMenuItem("24h", id="show-all"),
+                                dbc.DropdownMenuItem("AM", id="show-am"),
+                                dbc.DropdownMenuItem("PM", id="show-pm"),
+                                dbc.DropdownMenuItem("Peak", id="show-peak")
+                            ], label="\u231A", color="primary")
+                        ], justify="end")
                     ], width=3, style={"text-align": "right"}, className="d-none d-md-block")
                 ], justify="between", className="my-3"),
                 dbc.Row([
