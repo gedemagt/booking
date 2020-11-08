@@ -29,7 +29,6 @@ app.layout = html.Div([
     dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(),
                                           "source": None}),
     dcc.Store(id="bookings_store", data={}),
-    dcc.Store(id="data-store", data={}),
     dcc.Store(id="view_store", data={"show": "peak", "zone": None}, storage_type="local"),
     dcc.Location(id="location"),
     html.Div(id="redirect"),
