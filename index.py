@@ -29,7 +29,8 @@ app.layout = html.Div([
     dcc.Store(id="selection_store", data={"f": None, "t": None, "d": start_of_week(),
                                           "source": None}),
     dcc.Store(id="bookings_store", data={}),
-    dcc.Store(id="view_store", data={"show": "pm", "zone": None}),
+    dcc.Store(id="data-store", data={}),
+    dcc.Store(id="view_store", data={"show": "peak", "zone": None}, storage_type="local"),
     dcc.Location(id="location"),
     html.Div(id="redirect"),
     dbc.NavbarSimple(
@@ -49,7 +50,7 @@ app.layout = html.Div([
     [Output("layout", "children"), Output("navbar", "children"), Output("navbar", "brand")],
     [Input("location", "pathname")], group="view"
 )
-def path(path):
+def path(p):
 
     navbar_items = [
         dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
@@ -68,9 +69,9 @@ def path(path):
         if is_admin():
             navbar_items.insert(0, dbc.NavItem(dcc.Link(html.I(className="fa fa-cogs"), className="btn btn-primary", href="/gym_admin")))
 
-        if path and path.endswith("gym_admin") and is_admin():
+        if p and p.endswith("gym_admin") and is_admin():
             layout = create_gym_admin_layout()
-        elif path and path.endswith("superadmin") and current_user.role == "ADMIN":
+        elif p and p.endswith("superadmin") and current_user.role == "ADMIN":
             layout = create_admin_layout()
         else:
             layout = create_main_layout(get_chosen_gym())

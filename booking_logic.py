@@ -4,13 +4,13 @@ import humanize
 import numpy as np
 from flask_login import current_user
 
-from models import Booking, Zone
+from models import Booking
 from time_utils import start_of_day, start_of_week, timeslot_index
-from utils import get_chosen_gym, is_admin
+from utils import get_chosen_gym, is_admin, get_zone
 
 
-def create_from_to(f, t):
-    new_booking = np.zeros(24 * 4 * 7)
+def create_from_to(f, t, days):
+    new_booking = np.zeros(24 * 4 * days)
     for x in range(f, t):
         new_booking[x] += 1
     return new_booking
@@ -26,7 +26,10 @@ def create_daily_from_to(f, t):
 def validate_booking(start, end, number, zone_id):
 
     gym = get_chosen_gym()
-    zone = Zone.query.filter_by(id=zone_id).first()
+    if zone_id not in [x.id for x in gym.zones]:
+        raise AssertionError("The zone has been removed. Please refresh page and try again.")
+
+    zone = get_zone(zone_id)
 
     # First we check general stuff
     if start.date() != end.date():
@@ -102,19 +105,19 @@ def create_daily_booking_map(d, zone_id=None):
     return all_bookings, zone_bookings
 
 
-def create_weekly_booking_map(d, zone):
+def create_weekly_booking_map(d, zone, days=7):
     week_start_day = start_of_week(d)
-    week_end = week_start_day + timedelta(days=7)
+    week_end = week_start_day + timedelta(days=days)
 
-    all_bookings = np.zeros(24 * 4 * 7)
-    my_bookings = np.zeros(24 * 4 * 7)
+    all_bookings = np.zeros(24 * 4 * days)
+    my_bookings = np.zeros(24 * 4 * days)
 
     for b in Booking.query.filter(Booking.start >= week_start_day).filter(
             Booking.end <= week_end).filter_by(zone_id=zone).all():
         start = timeslot_index(b.start, week_start_day)
         end = timeslot_index(b.end, week_start_day)
 
-        start_end_array = create_from_to(start, end) * b.number
+        start_end_array = create_from_to(start, end, days) * b.number
 
         all_bookings += start_end_array
 
