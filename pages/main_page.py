@@ -35,6 +35,12 @@ def get_max_booking_length():
     return get_chosen_gym().max_booking_length if get_chosen_gym().max_booking_length is not None else 24*4
 
 
+def get_nr_slots(gym=None):
+    # if gym is None:
+    #     gym = get_chosen_gym()
+    return 1
+
+
 @app.callback(
     [Output("my-bookings", "children")],
     [Trigger("data-store", "data"), Trigger("bookings_store", "data")])
@@ -51,7 +57,7 @@ def redraw_all(data, view_data):
     zone_id = view_data["zone"]
     _max = get_chosen_gym().get_max_people(zone_id)
     x, y, z, hover = create_heatmap(d, parse(data["f"]), parse(data["t"]), zone_id)
-    return {"x": x, "y": y, "z": z, "max": _max, "close": config.CLOSE, "hover": hover}
+    return {"x": x, "y": y, "z": z, "max": _max, "close": config.CLOSE, "hover": hover, "nr_slots": get_nr_slots()}
 
 
 @app.callback(
@@ -207,16 +213,21 @@ def toggle_popover(n, is_open):
 
 def create_heatmap(d, f, t, zone_id):
     days = 7
+    nr_slots = get_nr_slots()
+    daily_slots = int(24 * 4 / nr_slots)
     zone = get_zone(zone_id)
     week_start_day = start_of_week(d)
     week_end_day = week_start_day + timedelta(days=days)
 
     all_bookings, my_bookings = create_weekly_booking_map(d, zone_id, days)
+
+    # Downscale
+    for x in range(0, len(all_bookings), nr_slots):
+        all_bookings[x:x+nr_slots] = max(all_bookings[x:x+nr_slots])
+
     hover = all_bookings.copy()
 
-    x = [(week_start_day.date() + timedelta(days=x)) for x in range(days)]
     start = datetime(1, 1, 1)
-    y = list(reversed([(start + timedelta(minutes=15 * k)).strftime("%H:%M") for k in range(24 * 4)]))
 
     all_bookings[my_bookings > 0] = -3
 
@@ -238,14 +249,20 @@ def create_heatmap(d, f, t, zone_id):
         latest = timeslot_index(start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead + 1), week_start_day)
         all_bookings[max(latest, 0):] = -4.5
 
-    z = np.flipud(np.reshape(all_bookings, (days, 24 * 4)).transpose())
-    hover = np.flipud(np.reshape(hover, (days, 24 * 4)).transpose())
+    filter = range(0, len(all_bookings), nr_slots)
+
+    z = np.flipud(np.reshape(all_bookings[filter], (days, daily_slots)).transpose())
+    hover = np.flipud(np.reshape(hover[filter], (days, daily_slots)).transpose())
+
+    x = [(week_start_day.date() + timedelta(days=x)) for x in range(days)]
+    y = list(reversed([(start + timedelta(minutes=15 * k * nr_slots)).strftime("%H:%M") for k in range(daily_slots)]))
 
     return x, y, z, hover
 
 
-OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15 * x)).strftime("%H:%M"), 'value': x} for x in
-           range(24 * 4 + 1)]
+def create_options(nr_slots):
+    return [{'label': (datetime(1, 1, 1) + timedelta(minutes=nr_slots * 15 * x)).strftime("%H:%M"), 'value': x} for x in
+           range(int(24 * 4 / nr_slots))]
 
 
 @app.callback(
@@ -294,6 +311,8 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
         picked_date = datetime.strptime(date_picker_date, "%Y-%m-%d")
         d = start_of_week(picked_date)
 
+        nr_slots = get_nr_slots()
+        OPTIONS = create_options(nr_slots)
 
         if trig.id == "from-drop-down":
             if prev_from is None:
@@ -332,21 +351,24 @@ def update_inputs(data, prev_from, prev_to, prev_date):
     to_value = None
 
     day = prev_date
+    nr_slots = get_nr_slots()
 
     if data.get("source", "") == "graph":
         day = start_of_day(datetime.now())
         if data["f"] is not None:
             d = parse(data["f"])
             day = start_of_day(d)
-            from_value = timeslot_index(d)
+            from_value = timeslot_index(d, slot_length=15 * nr_slots)
         if data["t"] is not None:
             d = parse(data["t"])
-            to_value = timeslot_index(d)
+            to_value = timeslot_index(d, slot_length=15 * nr_slots)
         day = day.date()
     elif data.get("source", "") == "input":
 
         from_value = prev_from if data["f"] is not None else None
         to_value = prev_to if data["t"] is not None else None
+
+    OPTIONS = create_options(nr_slots)
 
     from_min_index = timeslot_index(datetime.now()) + 1 if as_date(day) == datetime.now().date() else 0
     from_max_index = len(OPTIONS) - 1
@@ -507,6 +529,7 @@ def create_zone_picker(id, gym):
 
 
 def create_main_layout(gym):
+    nr_slots = get_nr_slots(gym)
     return dbc.Row([
         html.Div(id="dummy2", hidden=True),
         html.Div(id="dummy", hidden=True),
@@ -561,7 +584,7 @@ def create_main_layout(gym):
                                             dcc.Dropdown(
                                                 id="from-drop-down",
                                                 value=4 * 8,
-                                                options=OPTIONS[:-1],
+                                                options=create_options(nr_slots)[:-1],
                                                 searchable=False,
                                             )
                                         ], width=12, sm=5),
@@ -571,7 +594,7 @@ def create_main_layout(gym):
                                         dbc.Col([
                                             dcc.Dropdown(
                                                 id="to-drop-down",
-                                                options=OPTIONS[:-1],
+                                                options=create_options(nr_slots)[:-1],
                                                 searchable=False,
                                             )
                                         ], width=12, sm=5)

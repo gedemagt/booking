@@ -4,16 +4,16 @@ function set_fig(data, view_data) {
     let y_range;
     switch(view_data.show) {
         case "am":
-            y_range = [12 * 4, 24 * 4]
+            y_range = [data.y.length/2, data.y.length]
             break;
         case "pm":
-            y_range = [0, 12 * 4]
+            y_range = [0, data.y.length/2]
             break;
         case "peak":
-            y_range = [4, 9 * 4]
+            y_range = [4 / data.nr_slots, (4+8*4) / data.nr_slots]
             break;
         default:
-            y_range = [0, 24 * 4]
+            y_range = [0, data.y.length]
     }
 
     let BOOTSTRAP_BLUE = 'rgb(2, 117, 216)'
@@ -35,6 +35,15 @@ function set_fig(data, view_data) {
                     text_scatter_text.push(String(data.max - data.hover[i][j]))
                 }
             }
+        }
+    }
+
+    let y_ticks = [];
+    let y_ticks_label = [];
+    for(let i=0; i<data.y.length; i+=1) {
+        if(data.y[i].endsWith(":00")) {
+            y_ticks.push(i + 0.45)
+            y_ticks_label.push(data.y[i])
         }
     }
 
@@ -83,10 +92,10 @@ function set_fig(data, view_data) {
             padding: {t:0, r:0, l:0, b:0},
              yaxis: {
                  fixedrange: true,
-                 range: y_range.map(x => x -0.5),
-                 tickmode: 'linear',
-                 tick0: 7,
-                 dtick: 4,
+                 range: [y_range[0]-0.5, y_range[1]-0.4],
+                 tickmode: 'array',
+                 tickvals: y_ticks,
+                 ticktext: y_ticks_label,
                  ticklen:0
              },
              xaxis: {
