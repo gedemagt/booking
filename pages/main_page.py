@@ -645,13 +645,7 @@ def create_main_layout(gym):
                                 html.Span([
                                     html.Span("Week", className="ml-3 mr-1"),
                                     html.Span(datetime.now().isocalendar()[1], id="week", className="mr-3 ml-1"),
-                                    html.Span([
-                                        dbc.Spinner(color="primary", size="md")
-                                    ], id="progress-spinner",
-                                        style={"position": "absolute",
-                                               "width": "100%",
-                                               "text-align": "center",
-                                               "left": "0"})
+
                                 ], id="week-text", style={"position": "relative"}),
 
                             ], style={"width": "100%"}),
@@ -687,8 +681,14 @@ def create_main_layout(gym):
                         html.Div([
                             dcc.Graph(
                                 id="main-graph",
-                                style={"height": "70vh", "width": "100%"})
-                        ], className="my-3"),
+                                style={"height": "70vh", "width": "100%"}),
+                            html.Span([
+                                dbc.Spinner(color="primary", size="lg")
+                            ], id="progress-spinner",
+                                style={"position": "absolute",
+                                       "width": "100%",
+                                       "left": "0", "top": "0"})
+                        ], className="my-3", style={"position":"relative"}),
                     ], width=12),
                 ], justify="between"),
             ], fluid=True)

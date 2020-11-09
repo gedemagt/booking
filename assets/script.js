@@ -23,18 +23,16 @@ function set_fig(data, view_data) {
     let BOOTSTRAP_ORANGE = 'rgb(240, 173, 78)'
     let BOOTSTRAP_RED = 'rgb(217, 83, 79)'
 
-    let annotations = [];
+    let text_scatter_x = []
+    let text_scatter_y = []
+    let text_scatter_text = []
     if(view_data.show_text) {
         for (let i = y_range[0]; i < y_range[1]; i++) {
             for (let j = 0; j < data.x.length; j++) {
                 if (data.z[i][j] !== -4.5 && data.z[i][j] < data.max) {
-                    annotations.push({
-                        x: data.x[j],
-                        y: data.y[i],
-                        text: data.max - data.hover[i][j],
-                        font: {color: 'rgb(255,255,255)'},
-                        showarrow: false
-                    });
+                    text_scatter_x.push(data.x[j])
+                    text_scatter_y.push(data.y[i])
+                    text_scatter_text.push(String(data.max - data.hover[i][j]))
                 }
             }
         }
@@ -42,30 +40,44 @@ function set_fig(data, view_data) {
 
     let l = data.max + 5;
     let k = {
-        data: [{
-            name: "",
-            z: data.z,
-            x: data.x,
-            y: data.y,
-            text: data.hover,
-            hovertemplate: "%{y}: %{text}/" + data.max,
-            showscale: false,
-            hoverongaps: false,
-            zmin: -5,
-            zmax: data.max,
-            xgap: 5,
-            ygap: 0.1,
-            type: 'heatmap',
-            colorscale: [
-                [0.0, 'rgb(192,192,192)'], [1.0/l, 'rgb(192,192,192)'],
-                [1.0/l, BOOTSTRAP_LIGHT_BLUE], [2.0/l, BOOTSTRAP_LIGHT_BLUE],
-                [2.0/l, BOOTSTRAP_GREEN], [5.0/l, BOOTSTRAP_GREEN],
-                [5.0/l, BOOTSTRAP_BLUE], [(l - 4)/l, BOOTSTRAP_BLUE],
-                [(l - 3)/l, BOOTSTRAP_YELLOW], [(l-2)/l, BOOTSTRAP_YELLOW],
-                [(l-1)/l, BOOTSTRAP_ORANGE], [0.99, BOOTSTRAP_ORANGE],
-                [0.99, BOOTSTRAP_RED], [1.0, BOOTSTRAP_RED]
-            ]
-          }],
+        data: [
+            {
+                name: "",
+                z: data.z,
+                x: data.x,
+                y: data.y,
+                text: data.hover,
+                hovertemplate: "%{y}: %{text}/" + data.max,
+                showscale: false,
+                hoverongaps: false,
+                zmin: -5,
+                zmax: data.max,
+                xgap: 5,
+                ygap: 0.1,
+                type: 'heatmap',
+                colorscale: [
+                    [0.0, 'rgb(192,192,192)'], [1.0/l, 'rgb(192,192,192)'],
+                    [1.0/l, BOOTSTRAP_LIGHT_BLUE], [2.0/l, BOOTSTRAP_LIGHT_BLUE],
+                    [2.0/l, BOOTSTRAP_GREEN], [5.0/l, BOOTSTRAP_GREEN],
+                    [5.0/l, BOOTSTRAP_BLUE], [(l - 4)/l, BOOTSTRAP_BLUE],
+                    [(l - 3)/l, BOOTSTRAP_YELLOW], [(l-2)/l, BOOTSTRAP_YELLOW],
+                    [(l-1)/l, BOOTSTRAP_ORANGE], [0.99, BOOTSTRAP_ORANGE],
+                    [0.99, BOOTSTRAP_RED], [1.0, BOOTSTRAP_RED]
+                ]
+            },
+            {
+                name:"",
+                x: text_scatter_x,
+                y: text_scatter_y,
+                text: text_scatter_text,
+                type: "scatter",
+                mode:"text",
+                hoverinfo:'skip',
+                textfont: {
+                    color: 'rgb(255,255,255)'
+                },
+            }
+        ],
         layout: {
             margin: {t:40, r:0, l:40, b:0},
             padding: {t:0, r:0, l:0, b:0},
@@ -85,8 +97,7 @@ function set_fig(data, view_data) {
                  dtick: data.x[1] - data.x[0],
                  tick0: data.x[0],
                  ticklen:0
-             },
-             annotations: annotations
+             }
          }
     }
     return [k]
