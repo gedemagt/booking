@@ -47,6 +47,7 @@ def redraw_all():
     [Input("selection_store", "data"), Input("view_store", "data"), Trigger("bookings_store", "data")])
 def redraw_all(data, view_data):
     d = parse(data["d"])
+
     zone_id = view_data["zone"]
     _max = get_chosen_gym().get_max_people(zone_id)
     x, y, z, hover = create_heatmap(d, parse(data["f"]), parse(data["t"]), zone_id)
@@ -142,10 +143,10 @@ def on_week(data, view_data):
         if is_admin() or \
                 zone.gym.max_days_ahead is None or \
                 datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7):
-            data["d"] = d = d + timedelta(days=7)
+            data["d"] = d + timedelta(days=7)
     if trig.id == "prev_week":
         if datetime.now() < d:
-            data["d"] = d = d - timedelta(days=7)
+            data["d"] = d - timedelta(days=7)
 
     return data
 
@@ -218,6 +219,7 @@ def create_heatmap(d, f, t, zone_id):
     y = list(reversed([(start + timedelta(minutes=15 * k)).strftime("%H:%M") for k in range(24 * 4)]))
 
     all_bookings[my_bookings > 0] = -3
+
     if f and week_start_day <= f < week_end_day:
 
         start_idx = timeslot_index(f, week_start_day)
@@ -228,7 +230,7 @@ def create_heatmap(d, f, t, zone_id):
             for _x in range(start_idx + 1, end_idx):
                 all_bookings[_x] = -3.5
 
-    if week_start_day < datetime.now() < week_end_day:
+    if week_start_day < datetime.now():
         all_bookings[:timeslot_index(datetime.now(), week_start_day) + 1] = -4.5
 
     if not is_admin() and zone.gym.max_days_ahead is not None and \
@@ -581,17 +583,20 @@ def create_main_layout(gym):
             dbc.Container([
                 html.Div([dbc.Row([
                     dbc.Col([
-                        dbc.Row([dbc.Badge("Free slots", color="white", className="mx-1 mb-1")]),
+                        dbc.Row([
+                            dbc.Badge("Free slots", color="white", className="mx-1 mb-1"),
+                            dbc.Badge(f"Booked", color="success", className="mx-1 mb-1"),
+                        ]),
                         dbc.Row([
                             dbc.Badge("Full", color="danger", className="mx-1 mb-1"),
                             dbc.Badge(f"1", color="warning", className="mx-1 mb-1"),
                             dbc.Badge(f"2-3", className="mx-1 mb-1",
                                       style={"background-color": BOOTSTRAP_YELLOW, "color": "black"}),
                             dbc.Badge(f"4+", color="primary", className="mx-1 mb-1"),
-                            dbc.Badge(f"Booked", color="success", className="mx-1 mb-1")
+
                         ])
 
-                    ], width=6),
+                    ], width=7),
                     dbc.Col([
                         dbc.Row([
                             dbc.Button(html.I(className="fa fa-users"), id="show-text-2",
@@ -602,8 +607,8 @@ def create_main_layout(gym):
                                 dbc.DropdownMenuItem("PM", id="show-pm-2"),
                                 dbc.DropdownMenuItem("Peak", id="show-peak-2")
                             ], label="\u231A", color="primary")
-                        ], justify="end")
-                    ], width=6, style={"text-align": "right"})
+                        ], justify="between")
+                    ], width=5, style={"text-align": "right"})
                 ], justify="between", className="my-3")], className=" d-block d-md-none"),
 
                 dbc.Row([
