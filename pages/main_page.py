@@ -467,6 +467,18 @@ def nr_bookings_options(view_data):
     return [{"value": x, "label": x} for x in range(1, max_nr+1)]
 
 
+@app.callback(
+    [Output("progress-spinner", "hidden")],
+    [Trigger("selection_store", "data"), Trigger("view_store", "data"), Trigger("main-graph", "figure")]
+)
+def do():
+    trig = get_triggered()
+    if trig.id == "main-graph":
+        return True
+    else:
+        return False
+
+
 def create_zone_picker(id, gym):
     return html.Div(
         dbc.Row([
@@ -490,6 +502,7 @@ def create_zone_picker(id, gym):
 
 def create_main_layout(gym):
     return dbc.Row([
+        html.Div(id="dummy2", hidden=True),
         html.Div(id="dummy", hidden=True),
         dbc.Col([
             dbc.Row([
@@ -627,9 +640,19 @@ def create_main_layout(gym):
                         html.Div([
                             dbc.Button("<", id="prev_week", color="primary", disabled=True, size="sm"),
                             html.Span([
-                                html.Span("Week", className="ml-3 mr-1"),
-                                html.Span(datetime.now().isocalendar()[1], id="week", className="mr-3 ml-1"),
-                            ]),
+                                html.Span([
+                                    html.Span("Week", className="ml-3 mr-1"),
+                                    html.Span(datetime.now().isocalendar()[1], id="week", className="mr-3 ml-1"),
+                                    html.Span([
+                                        dbc.Spinner(color="primary", size="md")
+                                    ], id="progress-spinner",
+                                        style={"position": "absolute",
+                                               "width": "100%",
+                                               "text-align": "center",
+                                               "left": "0"})
+                                ], id="week-text", style={"position": "relative"}),
+
+                            ], style={"width": "100%"}),
                             dbc.Button(">", id="next_week", color="primary", size="sm")
                         ], style={"text-align": "center"})
                     ], width=12, md=6),
