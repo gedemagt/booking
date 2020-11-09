@@ -469,7 +469,9 @@ def nr_bookings_options(view_data):
 
 @app.callback(
     [Output("progress-spinner", "hidden")],
-    [Trigger("selection_store", "data"), Trigger("view_store", "data"), Trigger("main-graph", "figure")]
+    [Trigger("prev_week", "n_clicks"), Trigger("next_week", "n_clicks"),
+     Trigger("prev-zone", "n_clicks"), Trigger("next-zone", "n_clicks"),
+     Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks"), Trigger("main-graph", "figure")]
 )
 def do():
     trig = get_triggered()
@@ -620,7 +622,7 @@ def create_main_layout(gym):
                                 dbc.DropdownMenuItem("PM", id="show-pm-2"),
                                 dbc.DropdownMenuItem("Peak", id="show-peak-2")
                             ], label="\u231A", color="primary")
-                        ], justify="between")
+                        ], justify="end")
                     ], width=5, style={"text-align": "right"})
                 ], justify="between", className="my-3")], className=" d-block d-md-none"),
 
