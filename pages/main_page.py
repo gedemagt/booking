@@ -291,6 +291,9 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
 
         data["source"] = "graph"
     else:
+        picked_date = datetime.strptime(date_picker_date, "%Y-%m-%d")
+        d = start_of_week(picked_date)
+
 
         if trig.id == "from-drop-down":
             if prev_from is None:
@@ -309,6 +312,7 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
             if data["f"] is not None:
                 data["f"] = str(date_picker_date) + "T" + data["f"].split("T")[-1]
         data["source"] = "input"
+        data["d"] = d
     return data
 
 
