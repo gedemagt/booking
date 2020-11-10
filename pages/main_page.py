@@ -46,6 +46,9 @@ def redraw_all():
     [Output("data-store", "data")],
     [Input("selection_store", "data"), Input("view_store", "data"), Trigger("bookings_store", "data")])
 def redraw_all(data, view_data):
+    if len(current_user.gyms) == 0:
+        raise PreventUpdate
+
     d = parse(data["d"])
 
     zone_id = view_data["zone"]
