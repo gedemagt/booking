@@ -374,7 +374,11 @@ def update_inputs(data, prev_from, prev_to, prev_date):
 )
 def update_zone(data):
     zone = get_zone(data["zone"])
-    return zone.gym.zones[-1].id != zone.id, zone.gym.zones[0].id != zone.id, zone.name, zone.id
+    if len(zone.name) > 10:
+        name = zone.name[:10] + "..."
+    else:
+        name = zone.name
+    return zone.gym.zones[0].id == zone.id, zone.gym.zones[-1].id == zone.id, name, zone.id
 
 
 @app.callback(
