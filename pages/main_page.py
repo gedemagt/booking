@@ -179,7 +179,7 @@ def create_bookings():
                                 f'{b.start.strftime("%H:%M")} - {b.end.strftime("%H:%M")}',
                             ], width=12),
                             dbc.Col([
-                                b.zone.name,
+                                b.zone.name if len(get_chosen_gym().zones) > 1 else "",
                             ], width=12),
                         ])
                     ], width=7),
