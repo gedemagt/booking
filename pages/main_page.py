@@ -676,17 +676,19 @@ def create_main_layout(gym):
                         ], justify="end")
                     ], width=3, style={"text-align": "right"}, className="d-none d-md-block")
                 ], justify="between", className="my-3"),
-                dbc.Row([
-                    dbc.Col([
-                        html.Div([
-                            dbc.Button("<", id="prev-zone", color="primary", size="sm"),
-                            html.Span([
-                                html.Span(id="mobile-zone", className="mx-3"),
-                            ]),
-                            dbc.Button(">", id="next-zone", color="primary", size="sm")
-                        ], style={"text-align": "center"})
-                    ], width=12)
-                ], justify="around", className="d-block d-md-none"),
+                html.Div([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div([
+                                dbc.Button("<", id="prev-zone", color="primary", size="sm"),
+                                html.Span([
+                                    html.Span(id="mobile-zone", className="mx-3"),
+                                ]),
+                                dbc.Button(">", id="next-zone", color="primary", size="sm")
+                            ], style={"text-align": "center"})
+                        ], width=12)
+                    ], justify="around", className="d-block d-md-none")
+                ], hidden=len(gym.zones) < 2),
                 dbc.Row([
                     dbc.Col([
                         html.Div([
