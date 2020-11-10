@@ -699,9 +699,9 @@ def create_main_layout(gym):
                                 style={"position": "absolute",
                                        "width": "100%",
                                        "left": "0", "top": "0"})
-                        ], className="my-3", style={"position":"relative"}),
-                    ], width=12),
-                ], justify="between"),
-            ], fluid=True)
+                        ], style={"position":"relative"}),
+                    ], className="px-0", width=12),
+                ], justify="between", className="px-0"),
+            ], fluid=True, className="px-0")
         ], width=12, lg=7),
     ], className="p-3")
