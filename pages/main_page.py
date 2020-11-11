@@ -52,6 +52,9 @@ def redraw_all():
     [Output("data-store", "data")],
     [Input("selection_store", "data"), Input("view_store", "data"), Trigger("bookings_store", "data")])
 def redraw_all(data, view_data):
+    if len(current_user.gyms) == 0:
+        raise PreventUpdate
+
     d = parse(data["d"])
 
     zone_id = view_data["zone"]
@@ -182,7 +185,7 @@ def create_bookings():
                                 f'{b.start.strftime("%H:%M")} - {b.end.strftime("%H:%M")}',
                             ], width=12),
                             dbc.Col([
-                                b.zone.name,
+                                b.zone.name if len(get_chosen_gym().zones) > 1 else "",
                             ], width=12),
                         ])
                     ], width=7),
@@ -396,7 +399,11 @@ def update_inputs(data, prev_from, prev_to, prev_date):
 )
 def update_zone(data):
     zone = get_zone(data["zone"])
-    return zone.gym.zones[-1].id != zone.id, zone.gym.zones[0].id != zone.id, zone.name, zone.id
+    if len(zone.name) > 10:
+        name = zone.name[:10] + "..."
+    else:
+        name = zone.name
+    return zone.gym.zones[0].id == zone.id, zone.gym.zones[-1].id == zone.id, name, zone.id
 
 
 @app.callback(
@@ -692,17 +699,19 @@ def create_main_layout(gym):
                         ], justify="end")
                     ], width=3, style={"text-align": "right"}, className="d-none d-md-block")
                 ], justify="between", className="my-3"),
-                dbc.Row([
-                    dbc.Col([
-                        html.Div([
-                            dbc.Button("<", id="prev-zone", color="primary", size="sm"),
-                            html.Span([
-                                html.Span(id="mobile-zone", className="mx-3"),
-                            ]),
-                            dbc.Button(">", id="next-zone", color="primary", size="sm")
-                        ], style={"text-align": "center"})
-                    ], width=12)
-                ], justify="around", className="d-block d-md-none"),
+                html.Div([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div([
+                                dbc.Button("<", id="prev-zone", color="primary", size="sm"),
+                                html.Span([
+                                    html.Span(id="mobile-zone", className="mx-3"),
+                                ]),
+                                dbc.Button(">", id="next-zone", color="primary", size="sm")
+                            ], style={"text-align": "center"})
+                        ], width=12)
+                    ], justify="around", className="d-block d-md-none")
+                ], hidden=len(gym.zones) < 2),
                 dbc.Row([
                     dbc.Col([
                         html.Div([
@@ -715,9 +724,9 @@ def create_main_layout(gym):
                                 style={"position": "absolute",
                                        "width": "100%",
                                        "left": "0", "top": "0"})
-                        ], className="my-3", style={"position":"relative"}),
-                    ], width=12),
-                ], justify="between"),
-            ], fluid=True)
+                        ], style={"position":"relative"}),
+                    ], className="px-0", width=12),
+                ], justify="between", className="px-0"),
+            ], fluid=True, className="px-0")
         ], width=12, lg=7),
     ], className="p-3")

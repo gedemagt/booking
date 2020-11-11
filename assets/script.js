@@ -83,7 +83,7 @@ function set_fig(data, view_data) {
                 mode:"text",
                 hoverinfo:'skip',
                 textfont: {
-                    color: 'rgb(255,255,255)'
+                    color: 'rgb(0,0,0)'
                 },
             }
         ],

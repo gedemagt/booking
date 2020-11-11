@@ -241,9 +241,61 @@ def create_gym_admin_layout():
                 ]),
                 dbc.ModalFooter(dbc.Button("Delete", color="danger", id="do-delete")),
             ], id="prune-modal"),
-            dbc.Button("Delete bookings", id="prune-bookings", color="danger")
+            dbc.Button("Delete bookings", id="prune-bookings", color="danger"),
+            dbc.Modal([
+                dbc.ModalHeader("Move bookings"),
+                dbc.ModalHeader([
+                    dbc.Form([
+                        dbc.FormGroup([
+                            dbc.Label("From"),
+                            html.Br(),
+                            dcc.Dropdown(
+                                options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
+                                id="from-zone"
+                            ),
+                            dbc.FormText("Bookings which start after this date are deleted")
+                        ]),
+                        dbc.FormGroup([
+                            dbc.Label("To"),
+                            dcc.Dropdown(
+                                options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
+                                id="to-zone"
+                            ),
+                            dbc.FormText("If none is chose, all bookings are deleted")
+                        ])
+                    ]),
+                    dbc.Alert(id="moved-msg", color="danger", is_open=False)
+                ]),
+                dbc.ModalFooter(dbc.Button("Move", color="danger", id="do-move")),
+            ], id="move-bookings-modal"),
+            dbc.Button("Move bookings", id="move-bookings", color="danger"),
         ], width=3)
     ], className="p-3")
+
+
+@app.callback(
+    [Output("move-bookings-modal", "is_open"), Output("moved-msg", "children"), Output("moved-msg", "is_open")],
+    [Trigger("move-bookings", "n_clicks"), Trigger("do-move", "n_clicks")],
+    [State("from-zone", "value"), State("to-zone", "value")],
+)
+def show_modal(from_zone, to_zone):
+
+    trig = get_triggered()
+    if trig.id is None:
+        raise PreventUpdate
+
+    txt = ""
+    if trig.id == "do-move":
+
+        to_move = Booking.query.filter(Booking.zone_id == from_zone).all()
+
+        for b in to_move:
+            b.zone_id = to_zone
+            db.session.add(b)
+        db.session.commit()
+        txt = f"Moved {len(to_move)} bookings"
+
+    return trig.id in ["do-move", "move-bookings"], txt, txt != ""
 
 
 @app.callback(
