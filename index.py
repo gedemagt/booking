@@ -1,4 +1,5 @@
 from flask_login import current_user
+from flask_migrate import Migrate
 
 from app import app, fapp
 from models import try_init_db, db, User
@@ -23,6 +24,7 @@ user_manager = CustomUserManager(fapp, db, UserClass=User)
 
 try_init_db(user_manager)
 
+migrate = Migrate(fapp, db)
 
 app.layout = html.Div([
     html.Meta(name="viewport", content="width=device-width, initial-scale=1"),
