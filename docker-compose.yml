@@ -16,5 +16,6 @@ services:
       SMTP_SERVER: "${SMTP_SERVER:-}"
       ADMIN_PASS: "${ADMIN_PASS:-changeme}"
       ADMIN_EMAIL: "${ADMIN_EMAIL:-no@email.com}"
+      TZ: "Europe/Copenhagen"
     ports:
       - "8050:8050"
