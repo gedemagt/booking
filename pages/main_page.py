@@ -46,7 +46,7 @@ def redraw_all():
     [Output("data-store", "data")],
     [Input("selection_store", "data"), Input("view_store", "data"), Trigger("bookings_store", "data")])
 def redraw_all(data, view_data):
-    if len(current_user.gyms) == 0:
+    if len(current_user.gyms) == 0 or view_data["zone"] is None:
         raise PreventUpdate
 
     d = parse(data["d"])
@@ -297,7 +297,6 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
         picked_date = datetime.strptime(date_picker_date, "%Y-%m-%d")
         d = start_of_week(picked_date)
 
-
         if trig.id == "from-drop-down":
             if prev_from is None:
                 data["f"] = None
@@ -482,11 +481,12 @@ def nr_bookings_options(view_data):
     [Output("progress-spinner", "hidden")],
     [Trigger("prev_week", "n_clicks"), Trigger("next_week", "n_clicks"),
      Trigger("prev-zone", "n_clicks"), Trigger("next-zone", "n_clicks"),
-     Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks"), Trigger("main-graph", "figure")]
+     Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks"), Trigger("main-graph", "figure")],
+    [State("view_store", "data")]
 )
-def do():
+def do(view_data):
     trig = get_triggered()
-    if trig.id == "main-graph":
+    if trig.id == "main-graph" and view_data["zone"] is not None:
         return True
     else:
         return False
