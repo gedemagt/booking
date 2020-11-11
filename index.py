@@ -30,7 +30,7 @@ app.layout = html.Div([
                                           "source": None}),
     dcc.Store(id="bookings_store", data={}),
     dcc.Store(id="data-store", data={}),
-    dcc.Store(id="view_store", data={"show": "peak", "zone": None}, storage_type="local"),
+    dcc.Store(id="view_store", data={"show": "peak", "zone": None}),
     dcc.Location(id="location"),
     html.Div(id="redirect"),
     dbc.NavbarSimple(
