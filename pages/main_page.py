@@ -297,7 +297,6 @@ def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
         picked_date = datetime.strptime(date_picker_date, "%Y-%m-%d")
         d = start_of_week(picked_date)
 
-
         if trig.id == "from-drop-down":
             if prev_from is None:
                 data["f"] = None
