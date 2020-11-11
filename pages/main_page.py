@@ -187,14 +187,53 @@ def create_bookings():
                         b.number,
                     ], width=2),
                     dbc.Col([
-                        dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
-                                   color="danger")
+                        dbc.Row([
+                            html.Div([
+                                dbc.Button(html.I(className="fa fa-edit"), id=dict(type="edit-note", bookingid=b.id),
+                                           color="primary", size="sm"),
+                            ]) if is_admin() else None,
+                            dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
+                                       color="danger", size="sm")
+                        ])
                     ], width=2)
                 ], className="my-1")
             )
             result.append(html.Hr())
 
-    return dbc.Container(dbc.Table(result, style={"width": "100%"}))
+    return dbc.Container([
+        dbc.Modal(
+            [
+                html.Div(id="b-edit-id", hidden=True),
+                dbc.ModalHeader("Booking note"),
+                dbc.ModalBody(dbc.Textarea(id="booking-note-input")),
+                dbc.ModalFooter(
+                    dbc.Button("Save", id="ok-edit-booking", color="primary", className="ml-auto")
+                ),
+            ],
+            id="edit-booking-modal",
+        ),
+        dbc.Table(result, style={"width": "100%"})
+    ], fluid=True)
+
+
+@app.callback(
+    [Output("edit-booking-modal", "is_open"), Output("b-edit-id", "children"), Output("booking-note-input", "value")],
+    [Trigger(dict(type="edit-note", bookingid=ALL), "n_clicks"), Trigger("ok-edit-booking", "n_clicks")],
+    [State("b-edit-id", "children"), State("booking-note-input", "value")],
+)
+def toggle_modal2(bid, note):
+    if isinstance(get_triggered().id, dict):
+        new_bid = int(get_triggered().id["bookingid"])
+        b = Booking.query.filter_by(id=new_bid).first()
+        return True, new_bid, b.note
+    elif get_triggered().id == "ok-edit-booking":
+        b = Booking.query.filter_by(id=int(bid)).first()
+        if note and note.strip():
+            b.note = note
+            db.session.add(b)
+            db.session.commit()
+        return False, None, ""
+    return False, None, ""
 
 
 @app.callback(
