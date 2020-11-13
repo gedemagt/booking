@@ -22,7 +22,7 @@ init_flask_admin()
 
 user_manager = CustomUserManager(fapp, db, UserClass=User)
 
-# try_init_db(user_manager)
+try_init_db(user_manager)
 
 migrate = Migrate(fapp, db)
 
