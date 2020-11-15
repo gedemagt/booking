@@ -7,6 +7,7 @@ Flask
 Flask-SQLAlchemy
 Flask-User
 Flask-Admin
+flask-migrate
 email_validator
 numpy
 humanize
