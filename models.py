@@ -114,11 +114,22 @@ def init_db(fapp, user_manager):
                 role="ADMIN",
             )
 
+            user = User(
+                active=True,
+                username="user",
+                email_confirmed_at=datetime.now(),
+                email="no@email.com",
+                password=user_manager.password_manager.hash_password("changeme"),
+                role="USER",
+            )
+
             g.zones.append(Zone(name="Zone 1"))
             g.zones.append(Zone(name="Zone 2"))
             g.admins.append(admin)
             admin.gyms.append(g)
+            user.gyms.append(g)
 
             db.session.add(g)
+            db.session.add(user)
             db.session.add(admin)
             db.session.commit()
