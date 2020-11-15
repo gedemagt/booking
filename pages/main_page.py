@@ -165,7 +165,7 @@ def create_bookings():
     for d in sorted(k.keys()):
         result.append(
             dbc.Row([
-                dbc.Col(d.strftime("%d %b %Y"), width=7),
+                dbc.Col(d.strftime("%d %b %Y"), width=6),
                 dbc.Col("#", width=2)
             ], style={"background-color": "lightgrey"})
         )
@@ -182,20 +182,20 @@ def create_bookings():
                                 b.zone.name if len(get_chosen_gym().zones) > 1 else "",
                             ], width=12),
                         ])
-                    ], width=7),
+                    ], width=6),
                     dbc.Col([
                         b.number,
                     ], width=2),
                     dbc.Col([
                         dbc.Row([
                             html.Div([
-                                dbc.Button(html.I(className="fa fa-edit"), id=dict(type="edit-note", bookingid=b.id),
-                                           color="primary", size="sm"),
+                                dbc.Button(html.I(className="fa fa-sticky-note"), id=dict(type="edit-note", bookingid=b.id),
+                                           color="primary", size="sm", className="mr-1"),
                             ]) if is_admin() else None,
                             dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
                                        color="danger", size="sm")
-                        ])
-                    ], width=2)
+                        ], justify="end")
+                    ], width=3)
                 ], className="my-1")
             )
             result.append(html.Hr())
