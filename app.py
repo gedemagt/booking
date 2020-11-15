@@ -51,7 +51,7 @@ app = Dash(
 init_flask_admin(fapp)
 user_manager = CustomUserManager(fapp, db, UserClass=User)
 init_db(fapp, user_manager)
-migrate = Migrate(fapp)
+migrate = Migrate(fapp, db)
 
 
 for view_func in fapp.view_functions:
