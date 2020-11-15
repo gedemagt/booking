@@ -1,6 +1,6 @@
 from flask_login import current_user
 
-from app import app
+from app import app, fapp
 from pages.admin_page import create_admin_layout
 from pages.enter_gym_page import create_enter_gym_layout
 from pages.gym_page import create_gym_admin_layout
