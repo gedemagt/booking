@@ -189,8 +189,8 @@ def create_bookings():
                     dbc.Col([
                         dbc.Row([
                             html.Div([
-                                dbc.Button(html.I(className="fa fa-sticky-note"), id=dict(type="edit-note", bookingid=b.id),
-                                           color="primary", size="sm", className="mr-1"),
+                                html.Span(dbc.Button(html.I(className="fa fa-sticky-note"), id=dict(type="edit-note", bookingid=b.id),
+                                            color="primary", size="sm", className="mr-1"), title=b.note),
                             ]) if is_admin() else None,
                             dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
                                        color="danger", size="sm")
