@@ -4,10 +4,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_user import UserMixin
 
-import config
-from app import fapp
-
-db = SQLAlchemy(fapp)
+db = SQLAlchemy()
 
 gym_admins = db.Table(
     'gym_admins',
@@ -98,28 +95,30 @@ class Zone(db.Model):
     bookings = db.relationship('Booking', backref=db.backref('zone', lazy=True))
 
 
-def try_init_db(user_manager):
+def init_db(fapp, user_manager):
 
-    db.create_all()
-    if Gym.query.filter_by(code="TestGym").first() is None:
-        print("Initializing database")
+    db.init_app(fapp)
+    with fapp.app_context():
+        db.create_all()
+        if Gym.query.filter_by(code="TestGym").first() is None:
+            print("Initializing database")
 
-        g = Gym(name="TestGym", code="TestGym")
+            g = Gym(name="TestGym", code="TestGym")
 
-        admin = User(
-            active=True,
-            username="admin",
-            email_confirmed_at=datetime.now(),
-            email=os.getenv("ADMIN_EMAIL", "gedemagt+bookingadmin@gmail.com"),
-            password=user_manager.password_manager.hash_password(os.getenv("ADMIN_PASS", "changeme")),
-            role="ADMIN",
-        )
+            admin = User(
+                active=True,
+                username="admin",
+                email_confirmed_at=datetime.now(),
+                email=os.getenv("ADMIN_EMAIL", "gedemagt+bookingadmin@gmail.com"),
+                password=user_manager.password_manager.hash_password(os.getenv("ADMIN_PASS", "changeme")),
+                role="ADMIN",
+            )
 
-        g.zones.append(Zone(name="Zone 1"))
-        g.zones.append(Zone(name="Zone 2"))
-        g.admins.append(admin)
-        admin.gyms.append(g)
+            g.zones.append(Zone(name="Zone 1"))
+            g.zones.append(Zone(name="Zone 2"))
+            g.admins.append(admin)
+            admin.gyms.append(g)
 
-        db.session.add(g)
-        db.session.add(admin)
-        db.session.commit()
+            db.session.add(g)
+            db.session.add(admin)
+            db.session.commit()

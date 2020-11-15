@@ -1,14 +1,10 @@
 from flask_login import current_user
-from flask_migrate import Migrate
 
 from app import app, fapp
-from models import try_init_db, db, User
 from pages.admin_page import create_admin_layout
 from pages.enter_gym_page import create_enter_gym_layout
 from pages.gym_page import create_gym_admin_layout
 from pages.main_page import create_main_layout
-from plugins.admin import init_flask_admin
-from plugins.user import CustomUserManager
 from time_utils import start_of_week
 
 import dash_core_components as dcc
@@ -18,13 +14,6 @@ from dash_extensions.enrich import Output, Input
 
 from utils import is_admin, get_chosen_gym
 
-init_flask_admin()
-
-user_manager = CustomUserManager(fapp, db, UserClass=User)
-
-try_init_db(user_manager)
-
-migrate = Migrate(fapp, db)
 
 app.layout = html.Div([
     html.Meta(name="viewport", content="width=device-width, initial-scale=1"),
