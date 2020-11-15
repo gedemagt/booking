@@ -7,6 +7,9 @@ from flask_user import login_required, allow_unconfirmed_email
 import dash_bootstrap_components as dbc
 
 from config import DB_PATH
+from models import User, db, init_db
+from plugins.admin import init_flask_admin
+from plugins.user import CustomUserManager
 
 fapp = Flask(__name__)
 
@@ -43,6 +46,11 @@ app = Dash(
     update_title=None,
     suppress_callback_exceptions=True,
 )
+
+init_flask_admin(fapp)
+user_manager = CustomUserManager(fapp, db, UserClass=User)
+init_db(fapp, user_manager)
+
 
 for view_func in fapp.view_functions:
     if view_func.startswith('/'):
