@@ -107,7 +107,7 @@ def init_db(fapp, user_manager):
                 active=True,
                 username="admin",
                 email_confirmed_at=datetime.now(),
-                email=os.getenv("ADMIN_EMAIL", "gedemagt+bookingadmin@gmail.com"),
+                email=os.getenv("ADMIN_EMAIL", "some@email.com"),
                 password=user_manager.password_manager.hash_password(os.getenv("ADMIN_PASS", "changeme")),
                 role="ADMIN",
             )
