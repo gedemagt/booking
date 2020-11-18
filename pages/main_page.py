@@ -17,7 +17,7 @@ from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
 from models import Booking, db
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
-from utils import get_chosen_gym, is_admin, get_zone, zone_exists
+from utils import get_chosen_gym, is_admin, get_zone
 
 BOOTSTRAP_BLUE = "#0275d8"
 BOOTSTRAP_GREEN = "#5cb85c"
@@ -37,7 +37,7 @@ def get_max_booking_length():
 
 @app.callback(
     [Output("my-bookings", "children")],
-    [Trigger("data-store", "data"), Trigger("bookings_store", "data")])
+    [Trigger("data-store", "data"), Trigger("bookings_store", "data"), Trigger("edit-booking-modal", "is_open")])
 def redraw_all():
     return create_bookings()
 
@@ -201,17 +201,6 @@ def create_bookings():
             result.append(html.Hr())
 
     return dbc.Container([
-        dbc.Modal(
-            [
-                html.Div(id="b-edit-id", hidden=True),
-                dbc.ModalHeader("Booking note"),
-                dbc.ModalBody(dbc.Textarea(id="booking-note-input")),
-                dbc.ModalFooter(
-                    dbc.Button("Save", id="ok-edit-booking", color="primary", className="ml-auto")
-                ),
-            ],
-            id="edit-booking-modal",
-        ),
         dbc.Table(result, style={"width": "100%"})
     ], fluid=True)
 
@@ -222,7 +211,8 @@ def create_bookings():
     [State("b-edit-id", "children"), State("booking-note-input", "value")],
 )
 def toggle_modal2(bid, note):
-    if isinstance(get_triggered().id, dict):
+    if isinstance(get_triggered().id, dict) and get_triggered().n_clicks is not None:
+        # print(get_triggered().__dict__)
         new_bid = int(get_triggered().id["bookingid"])
         b = Booking.query.filter_by(id=new_bid).first()
         return True, new_bid, b.note
@@ -638,6 +628,17 @@ def create_main_layout(gym):
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
+                            dbc.Modal(
+                                [
+                                    html.Div(id="b-edit-id", hidden=True),
+                                    dbc.ModalHeader("Booking note"),
+                                    dbc.ModalBody(dbc.Textarea(id="booking-note-input")),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Save", id="ok-edit-booking", color="primary", className="ml-auto")
+                                    ),
+                                ],
+                                id="edit-booking-modal",
+                            ),
                             html.Div(id="my-bookings")
                         ])
                     ])
@@ -658,9 +659,7 @@ def create_main_layout(gym):
                             dbc.Badge(f"2-3", className="mx-1 mb-1",
                                       style={"background-color": BOOTSTRAP_YELLOW, "color": "black"}),
                             dbc.Badge(f"4+", color="primary", className="mx-1 mb-1"),
-
                         ])
-
                     ], width=7),
                     dbc.Col([
                         dbc.Row([
