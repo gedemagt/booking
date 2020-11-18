@@ -42,6 +42,8 @@ class Booking(db.Model):
     start = db.Column(db.DateTime, nullable=False)
     end = db.Column(db.DateTime, nullable=False)
 
+    note = db.Column(db.String, nullable=True)
+
     user_id = db.Column(db.Integer(), db.ForeignKey('users.id'))
     zone_id = db.Column(db.Integer(), db.ForeignKey('zones.id'), nullable=False)
 
