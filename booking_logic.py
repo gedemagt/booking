@@ -75,7 +75,8 @@ def validate_booking(start, end, number, zone_id):
         maxlen = humanize.precisedelta(timedelta(seconds=gym.max_booking_length * TS_S))
         raise AssertionError(f"Max booking length is {maxlen}")
 
-    active_bookings = len([x for x in current_user.bookings if x.end - timedelta(minutes=TS_M*gym.book_before) >= datetime.now()])
+    book_before = gym.book_before if gym.book_before is not None else 0
+    active_bookings = len([x for x in current_user.bookings if x.end - timedelta(minutes=TS_M*book_before) >= datetime.now()])
 
     if gym.max_booking_per_user is not None and \
             active_bookings >= gym.max_booking_per_user:

@@ -100,8 +100,8 @@ def init_db(fapp, user_manager):
 
     db.init_app(fapp)
     with fapp.app_context():
-        db.create_all()
         if Gym.query.filter_by(code="TestGym").first() is None:
+            db.create_all()
             print("Initializing database")
 
             g = Gym(name="TestGym", code="TestGym")

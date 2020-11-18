@@ -273,7 +273,7 @@ def create_heatmap(d, f, t, zone_id):
                 all_bookings[_x] = -3.5
 
     if week_start_day < datetime.now():
-        all_bookings[:timeslot_index(datetime.now(), week_start_day) + 1] = -4.5
+        all_bookings[:timeslot_index(datetime.now(), week_start_day)] = -4.5
 
     if not is_admin() and zone.gym.max_days_ahead is not None and \
             start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead) < week_end_day:
@@ -389,7 +389,7 @@ def update_inputs(data, prev_from, prev_to, prev_date):
         from_value = prev_from if data["f"] is not None else None
         to_value = prev_to if data["t"] is not None else None
 
-    from_min_index = timeslot_index(datetime.now()) + 1 if as_date(day) == datetime.now().date() else 0
+    from_min_index = timeslot_index(datetime.now()) if as_date(day) == datetime.now().date() else 0
     from_max_index = len(OPTIONS) - 1
 
     if from_value is not None:
