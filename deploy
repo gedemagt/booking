@@ -2,5 +2,4 @@ mkdir -p backup
 cp res/db.db "backup/$(date +"%Y_%m_%d_%H_%M_%S").db"
 
 docker-compose up --build -d
-docker exec -t booking-webapp flask db upgrade
 docker logs -f booking-webapp
