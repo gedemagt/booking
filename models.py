@@ -104,9 +104,7 @@ def init_db(fapp, user_manager):
     db.init_app(fapp)
 
     with fapp.app_context():
-        if os.path.exists(DB_PATH):
-            upgrade()
-        else:
+        if not os.path.exists(DB_PATH):
             print("Initializing database")
             db.create_all()
             stamp()
