@@ -1,8 +1,11 @@
 import os
 from datetime import datetime
 
+from flask_migrate import stamp, upgrade
 from flask_sqlalchemy import SQLAlchemy
 from flask_user import UserMixin
+
+from config import DB_PATH
 
 db = SQLAlchemy()
 
@@ -99,11 +102,14 @@ class Zone(db.Model):
 def init_db(fapp, user_manager):
 
     db.init_app(fapp)
-    with fapp.app_context():
-        if Gym.query.filter_by(code="TestGym").first() is None:
-            db.create_all()
-            print("Initializing database")
 
+    with fapp.app_context():
+        if os.path.exists(DB_PATH):
+            upgrade()
+        else:
+            print("Initializing database")
+            db.create_all()
+            stamp()
             g = Gym(name="TestGym", code="TestGym")
 
             admin = User(
