@@ -8,6 +8,9 @@ from models import Booking
 from time_utils import start_of_day, start_of_week, timeslot_index
 from utils import get_chosen_gym, is_admin, get_zone
 
+TS_M = 15
+TS_S = TS_M * 60
+
 
 def create_from_to(f, t, days):
     new_booking = np.zeros(24 * 4 * days)
@@ -68,11 +71,11 @@ def validate_booking(start, end, number, zone_id):
         raise AssertionError(
             f"Selection is overlapping with another booking")
 
-    if gym.max_booking_length and ((end - start).total_seconds() / 60 / 15) > gym.max_booking_length:
-        maxlen = humanize.precisedelta(timedelta(seconds=gym.max_booking_length * 15 * 60))
+    if gym.max_booking_length and ((end - start).total_seconds() / TS_S) > gym.max_booking_length:
+        maxlen = humanize.precisedelta(timedelta(seconds=gym.max_booking_length * TS_S))
         raise AssertionError(f"Max booking length is {maxlen}")
 
-    active_bookings = len([x for x in current_user.bookings if x.end >= datetime.now()])
+    active_bookings = len([x for x in current_user.bookings if x.end - timedelta(minutes=TS_M*gym.book_before) >= datetime.now()])
 
     if gym.max_booking_per_user is not None and \
             active_bookings >= gym.max_booking_per_user:
@@ -80,8 +83,8 @@ def validate_booking(start, end, number, zone_id):
 
     if gym.max_time_per_user_per_day is not None:
         total_seconds = sum((x.end - x.start).total_seconds() for x in current_user.bookings if x.start.date() == start.date())
-        if ((total_seconds + (end - start).total_seconds()) / 60 / 15) > gym.max_time_per_user_per_day:
-            maxlen = humanize.precisedelta(timedelta(seconds=gym.max_time_per_user_per_day * 15 * 60))
+        if ((total_seconds + (end - start).total_seconds()) / TS_S) > gym.max_time_per_user_per_day:
+            maxlen = humanize.precisedelta(timedelta(seconds=gym.max_time_per_user_per_day * TS_S))
             raise AssertionError(f"You can not book more than {maxlen} per day")
 
 
@@ -92,8 +95,8 @@ def create_daily_booking_map(d, zone_id=None):
     zone_bookings = np.zeros(24 * 4)
 
     for b in Booking.query.filter(Booking.start >= day).filter(Booking.end <= day + timedelta(days=1)).filter_by(zone_id=zone_id).all():
-        start = (b.start - day).total_seconds() / 60 / 15
-        end = (b.end - day).total_seconds() / 60 / 15
+        start = (b.start - day).total_seconds() / TS_S
+        end = (b.end - day).total_seconds() / TS_S
 
         start_end_array = create_daily_from_to(int(start), int(end)) * b.number
 

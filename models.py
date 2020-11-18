@@ -60,6 +60,7 @@ class Gym(db.Model):
     max_time_per_user_per_day = db.Column(db.Integer, nullable=True) # Number of active bookings on one day
     max_number_per_booking = db.Column(db.Integer, nullable=False, default=1) # Number of persons per booking
     max_days_ahead = db.Column(db.Integer, nullable=True)
+    book_before = db.Column(db.Integer, nullable=False, default=0)
 
     admins = db.relationship('User', secondary=gym_admins, lazy='subquery',
                              backref=db.backref('admin_gyms', lazy=True))
