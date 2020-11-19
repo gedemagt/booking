@@ -17,11 +17,11 @@ from utils import get_chosen_gym, get_zone
 @app.callback(
     [Output("save-gym-alert", "children"), Output("save-gym-alert", "color"), Output("save-gym-alert", "is_open")],
     [Trigger("save_gym_settings", "n_clicks")],
-    [State("max_days_ahead", "value"), State("max_persons", "value"), State("max_booking_length", "value"), State("max_booking_per_user", "value"),
+    [State("book_before", "value"), State("max_days_ahead", "value"), State("max_persons", "value"), State("max_booking_length", "value"), State("max_booking_per_user", "value"),
      State("max_time_per_user_per_day", "value"), State("max_number_per_booking", "value"),
      State("gym_admins", "value"), State(dict(type="zone-name", id=ALL), "value"), State(dict(type="zone-max-people", id=ALL), "value")]
 )
-def on_save_gym(max_days_ahead, max_persons, max_booking_length, max_booking_per_user,
+def on_save_gym(book_before, max_days_ahead, max_persons, max_booking_length, max_booking_per_user,
                 max_time_per_user_per_day, max_number_per_booking, admins, zone_name, zone_max_people):
     trig = get_triggered()
     if trig.id is None:
@@ -36,6 +36,7 @@ def on_save_gym(max_days_ahead, max_persons, max_booking_length, max_booking_per
         g.max_time_per_user_per_day = max_time_per_user_per_day
         g.max_number_per_booking = max_number_per_booking
         g.max_days_ahead = max_days_ahead
+        g.book_before = book_before
 
         for zone, name, capacity in zip(g.zones, zone_name, zone_max_people):
             zone.name = name
@@ -184,6 +185,16 @@ def create_gym_admin_layout():
                         dbc.Input(type="number", id="max_days_ahead", value=gym.max_days_ahead, min=1),
                         dbc.FormText(
                             "How many days ahead can a booking be",
+                            color="secondary",
+                        ),
+                    ],
+                ),
+                dbc.FormGroup(
+                    [
+                        dbc.Label("Active bookings ends before", html_for="book_before"),
+                        dbc.Input(type="number", id="book_before", value=gym.book_before, min=0),
+                        dbc.FormText(
+                            "An active booking is only included in the limit of active bookings until end time minus this number of quarters",
                             color="secondary",
                         ),
                     ],

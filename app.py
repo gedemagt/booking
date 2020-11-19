@@ -2,7 +2,7 @@ import os
 
 from dash_extensions.enrich import Dash
 from flask import Flask
-from flask_migrate import Migrate
+from flask_migrate import Migrate, upgrade
 from flask_user import login_required, allow_unconfirmed_email
 
 import dash_bootstrap_components as dbc
@@ -50,8 +50,8 @@ app = Dash(
 
 init_flask_admin(fapp)
 user_manager = CustomUserManager(fapp, db, UserClass=User)
-init_db(fapp, user_manager)
 migrate = Migrate(fapp, db)
+init_db(fapp, user_manager)
 
 
 for view_func in fapp.view_functions:
