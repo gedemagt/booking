@@ -1,13 +1,13 @@
 import os
 from datetime import datetime
 
+from flask_migrate import stamp, upgrade
 from flask_sqlalchemy import SQLAlchemy
 from flask_user import UserMixin
 
-import config
-from app import fapp
+from config import DB_PATH
 
-db = SQLAlchemy(fapp)
+db = SQLAlchemy()
 
 gym_admins = db.Table(
     'gym_admins',
@@ -45,6 +45,8 @@ class Booking(db.Model):
     start = db.Column(db.DateTime, nullable=False)
     end = db.Column(db.DateTime, nullable=False)
 
+    note = db.Column(db.String, nullable=True)
+
     user_id = db.Column(db.Integer(), db.ForeignKey('users.id'))
     zone_id = db.Column(db.Integer(), db.ForeignKey('zones.id'), nullable=False)
 
@@ -61,6 +63,7 @@ class Gym(db.Model):
     max_time_per_user_per_day = db.Column(db.Integer, nullable=True) # Number of active bookings on one day
     max_number_per_booking = db.Column(db.Integer, nullable=False, default=1) # Number of persons per booking
     max_days_ahead = db.Column(db.Integer, nullable=True)
+    book_before = db.Column(db.Integer, nullable=False, default=0)
 
     admins = db.relationship('User', secondary=gym_admins, lazy='subquery',
                              backref=db.backref('admin_gyms', lazy=True))
@@ -96,28 +99,42 @@ class Zone(db.Model):
     bookings = db.relationship('Booking', backref=db.backref('zone', lazy=True))
 
 
-def try_init_db(user_manager):
+def init_db(fapp, user_manager):
 
-    db.create_all()
-    if Gym.query.filter_by(code="TestGym").first() is None:
-        print("Initializing database")
+    db.init_app(fapp)
 
-        g = Gym(name="TestGym", code="TestGym")
+    with fapp.app_context():
+        if not os.path.exists(DB_PATH):
+            print("Initializing database")
+            db.create_all()
+            stamp()
+            g = Gym(name="TestGym", code="TestGym")
 
-        admin = User(
-            active=True,
-            username="admin",
-            email_confirmed_at=datetime.now(),
-            email=os.getenv("ADMIN_EMAIL", "gedemagt+bookingadmin@gmail.com"),
-            password=user_manager.password_manager.hash_password(os.getenv("ADMIN_PASS", "changeme")),
-            role="ADMIN",
-        )
+            admin = User(
+                active=True,
+                username="admin",
+                email_confirmed_at=datetime.now(),
+                email=os.getenv("ADMIN_EMAIL", "some@email.com"),
+                password=user_manager.password_manager.hash_password(os.getenv("ADMIN_PASS", "changeme")),
+                role="ADMIN",
+            )
 
-        g.zones.append(Zone(name="Zone 1"))
-        g.zones.append(Zone(name="Zone 2"))
-        g.admins.append(admin)
-        admin.gyms.append(g)
+            user = User(
+                active=True,
+                username="user",
+                email_confirmed_at=datetime.now(),
+                email="no@email.com",
+                password=user_manager.password_manager.hash_password("changeme"),
+                role="USER",
+            )
 
-        db.session.add(g)
-        db.session.add(admin)
-        db.session.commit()
+            g.zones.append(Zone(name="Zone 1"))
+            g.zones.append(Zone(name="Zone 2"))
+            g.admins.append(admin)
+            admin.gyms.append(g)
+            user.gyms.append(g)
+
+            db.session.add(g)
+            db.session.add(user)
+            db.session.add(admin)
+            db.session.commit()

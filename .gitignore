@@ -1,8 +1,9 @@
-venv
+venv/
+backup/
 __pycache__
 .idea/
 *~
 *.db
 *.sqlite
-res
+res/
 .env

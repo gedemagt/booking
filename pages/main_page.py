@@ -15,9 +15,10 @@ import numpy as np
 import config
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
+from components import create_gym_info
 from models import Booking, db
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
-from utils import get_chosen_gym, is_admin, get_zone, zone_exists
+from utils import get_chosen_gym, is_admin, get_zone
 
 BOOTSTRAP_BLUE = "#0275d8"
 BOOTSTRAP_GREEN = "#5cb85c"
@@ -43,7 +44,7 @@ def get_nr_slots(gym=None):
 
 @app.callback(
     [Output("my-bookings", "children")],
-    [Trigger("data-store", "data"), Trigger("bookings_store", "data")])
+    [Trigger("data-store", "data"), Trigger("bookings_store", "data"), Trigger("edit-booking-modal", "is_open")])
 def redraw_all():
     return create_bookings()
 
@@ -52,7 +53,7 @@ def redraw_all():
     [Output("data-store", "data")],
     [Input("selection_store", "data"), Input("view_store", "data"), Trigger("bookings_store", "data")])
 def redraw_all(data, view_data):
-    if len(current_user.gyms) == 0:
+    if len(current_user.gyms) == 0 or view_data["zone"] is None:
         raise PreventUpdate
 
     d = parse(data["d"])
@@ -171,7 +172,7 @@ def create_bookings():
     for d in sorted(k.keys()):
         result.append(
             dbc.Row([
-                dbc.Col(d.strftime("%d %b %Y"), width=7),
+                dbc.Col(d.strftime("%d %b %Y"), width=6),
                 dbc.Col("#", width=2)
             ], style={"background-color": "lightgrey"})
         )
@@ -188,19 +189,48 @@ def create_bookings():
                                 b.zone.name if len(get_chosen_gym().zones) > 1 else "",
                             ], width=12),
                         ])
-                    ], width=7),
+                    ], width=6),
                     dbc.Col([
                         b.number,
                     ], width=2),
                     dbc.Col([
-                        dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
-                                   color="danger")
-                    ], width=2)
+                        dbc.Row([
+                            html.Div([
+                                html.Span(dbc.Button(html.I(className="fa fa-sticky-note"), id=dict(type="edit-note", bookingid=b.id),
+                                            color="primary", size="sm", className="mr-1"), title=b.note),
+                            ]) if is_admin() else None,
+                            dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
+                                       color="danger", size="sm")
+                        ], justify="end")
+                    ], width=3)
                 ], className="my-1")
             )
             result.append(html.Hr())
 
-    return dbc.Container(dbc.Table(result, style={"width": "100%"}))
+    return dbc.Container([
+        dbc.Table(result, style={"width": "100%"})
+    ], fluid=True)
+
+
+@app.callback(
+    [Output("edit-booking-modal", "is_open"), Output("b-edit-id", "children"), Output("booking-note-input", "value")],
+    [Trigger(dict(type="edit-note", bookingid=ALL), "n_clicks"), Trigger("ok-edit-booking", "n_clicks")],
+    [State("b-edit-id", "children"), State("booking-note-input", "value")],
+)
+def toggle_modal2(bid, note):
+    if isinstance(get_triggered().id, dict) and get_triggered().n_clicks is not None:
+        # print(get_triggered().__dict__)
+        new_bid = int(get_triggered().id["bookingid"])
+        b = Booking.query.filter_by(id=new_bid).first()
+        return True, new_bid, b.note
+    elif get_triggered().id == "ok-edit-booking":
+        b = Booking.query.filter_by(id=int(bid)).first()
+        if note and note.strip():
+            b.note = note
+            db.session.add(b)
+            db.session.commit()
+        return False, None, ""
+    return False, None, ""
 
 
 @app.callback(
@@ -245,7 +275,7 @@ def create_heatmap(d, f, t, zone_id):
                 all_bookings[_x] = -3.5
 
     if week_start_day < datetime.now():
-        all_bookings[:timeslot_index(datetime.now(), week_start_day) + 1] = -4.5
+        all_bookings[:timeslot_index(datetime.now(), week_start_day)] = -4.5
 
     if not is_admin() and zone.gym.max_days_ahead is not None and \
             start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead) < week_end_day:
@@ -373,7 +403,7 @@ def update_inputs(data, prev_from, prev_to, prev_date):
 
     OPTIONS = create_options(nr_slots)
 
-    from_min_index = timeslot_index(datetime.now()) + 1 if as_date(day) == datetime.now().date() else 0
+    from_min_index = timeslot_index(datetime.now()) if as_date(day) == datetime.now().date() else 0
     from_max_index = len(OPTIONS) - 1
 
     if from_value is not None:
@@ -504,11 +534,12 @@ def nr_bookings_options(view_data):
     [Output("progress-spinner", "hidden")],
     [Trigger("prev_week", "n_clicks"), Trigger("next_week", "n_clicks"),
      Trigger("prev-zone", "n_clicks"), Trigger("next-zone", "n_clicks"),
-     Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks"), Trigger("main-graph", "figure")]
+     Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks"), Trigger("main-graph", "figure")],
+    [State("view_store", "data")]
 )
-def do():
+def do(view_data):
     trig = get_triggered()
-    if trig.id == "main-graph":
+    if trig.id == "main-graph" and view_data["zone"] is not None:
         return True
     else:
         return False
@@ -535,6 +566,17 @@ def create_zone_picker(id, gym):
     )
 
 
+@app.callback(
+    Output("popover-help", "is_open"),
+    [Input("popover-help-target", "n_clicks")],
+    [State("popover-help", "is_open")],
+)
+def toggle_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+
 def create_main_layout(gym):
     nr_slots = get_nr_slots(gym)
     return dbc.Row([
@@ -545,7 +587,21 @@ def create_main_layout(gym):
                 dbc.Col([
                     html.H4(f"Welcome {current_user.username}", className="my-3"),
                     dbc.Card([
-                        dbc.CardHeader("New booking"),
+                        dbc.CardHeader(html.Span([
+                            "New booking",
+                            dbc.Button(html.I(className="fa fa-question"), id="popover-help-target",
+                                       className="float-right", color="white", size="sm"),
+                            dbc.Popover(
+                                [
+                                    dbc.PopoverHeader("Current booking rules"),
+                                    dbc.PopoverBody(create_gym_info(gym)),
+                                ],
+                                id="popover-help",
+                                is_open=False,
+                                target="popover-help-target",
+                                placement="bottom-left"
+                            ),
+                        ], style={"width": "100%"})),
                         dbc.CardBody([
                             create_zone_picker("zone-picker", gym),
                             html.Div([
@@ -622,6 +678,17 @@ def create_main_layout(gym):
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
+                            dbc.Modal(
+                                [
+                                    html.Div(id="b-edit-id", hidden=True),
+                                    dbc.ModalHeader("Booking note"),
+                                    dbc.ModalBody(dbc.Textarea(id="booking-note-input")),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Save", id="ok-edit-booking", color="primary", className="ml-auto")
+                                    ),
+                                ],
+                                id="edit-booking-modal",
+                            ),
                             html.Div(id="my-bookings")
                         ])
                     ])
@@ -642,9 +709,7 @@ def create_main_layout(gym):
                             dbc.Badge(f"2-3", className="mx-1 mb-1",
                                       style={"background-color": BOOTSTRAP_YELLOW, "color": "black"}),
                             dbc.Badge(f"4+", color="primary", className="mx-1 mb-1"),
-
                         ])
-
                     ], width=7),
                     dbc.Col([
                         dbc.Row([

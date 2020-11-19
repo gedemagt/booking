@@ -1,6 +1,33 @@
 
 
 function set_fig(data, view_data) {
+
+    if(view_data.zone === null) {
+        return [
+            {
+                "layout": {
+                    "xaxis": {
+                        "visible": false
+                    },
+                    "yaxis": {
+                        "visible": false
+                    },
+                    "annotations": [
+                        {
+                            "text": "",
+                            "xref": "paper",
+                            "yref": "paper",
+                            "showarrow": false,
+                            "font": {
+                                "size": 28
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+
     let y_range;
     switch(view_data.show) {
         case "am":

@@ -3,7 +3,6 @@ from flask import redirect, url_for, request
 from flask_login import current_user
 
 from models import User, db, Booking, Gym, Zone
-from app import fapp
 from flask_admin import Admin
 
 
@@ -17,7 +16,7 @@ class LoggedinModelView(ModelView):
         return redirect(url_for('/', next=request.url))
 
 
-def init_flask_admin():
+def init_flask_admin(fapp):
     admin = Admin(fapp, name='Booking', template_mode='bootstrap3')
     admin.add_view(LoggedinModelView(User, db.session))
     admin.add_view(LoggedinModelView(Booking, db.session))
