@@ -15,6 +15,7 @@ import numpy as np
 import config
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
+from components import create_gym_info
 from models import Booking, db
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin, get_zone
@@ -542,6 +543,17 @@ def create_zone_picker(id, gym):
     )
 
 
+@app.callback(
+    Output("popover-help", "is_open"),
+    [Input("popover-help-target", "n_clicks")],
+    [State("popover-help", "is_open")],
+)
+def toggle_popover(n, is_open):
+    if n:
+        return not is_open
+    return is_open
+
+
 def create_main_layout(gym):
     return dbc.Row([
         html.Div(id="dummy2", hidden=True),
@@ -551,7 +563,21 @@ def create_main_layout(gym):
                 dbc.Col([
                     html.H4(f"Welcome {current_user.username}", className="my-3"),
                     dbc.Card([
-                        dbc.CardHeader("New booking"),
+                        dbc.CardHeader(html.Span([
+                            "New booking",
+                            dbc.Button(html.I(className="fa fa-question"), id="popover-help-target",
+                                       className="float-right", color="white", size="sm"),
+                            dbc.Popover(
+                                [
+                                    dbc.PopoverHeader("Current booking rules"),
+                                    dbc.PopoverBody(create_gym_info(gym)),
+                                ],
+                                id="popover-help",
+                                is_open=False,
+                                target="popover-help-target",
+                                placement="bottom-left"
+                            ),
+                        ], style={"width": "100%"})),
                         dbc.CardBody([
                             create_zone_picker("zone-picker", gym),
                             html.Div([
