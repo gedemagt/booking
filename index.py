@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from dash.dependencies import State
 from flask_login import current_user
 
@@ -22,7 +24,7 @@ app.layout = html.Div([
                                           "source": None}),
     dcc.Store(id="bookings_store", data={}),
     dcc.Store(id="data-store", data={}),
-    dcc.Store(id="last-clicked", data={}, storage_type="local"),
+    dcc.Store(id="last-clicked", data={"last": datetime.now()}, storage_type="local"),
     dcc.Store(id="view_store", data={"show": "peak", "zone": None}, storage_type='local'),
     dcc.Location(id="location"),
     html.Div(id="redirect"),

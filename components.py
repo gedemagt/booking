@@ -2,12 +2,6 @@ from datetime import timedelta
 
 import dash_html_components as html
 import humanize
-from dash.dependencies import Output, State, Input
-
-from app import app
-
-
-
 
 
 def create_gym_info(gym):

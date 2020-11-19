@@ -586,13 +586,20 @@ def create_main_layout(gym, last_clicked):
                         dbc.CardHeader(html.Span([
                             "New booking",
                             dbc.Button([
-                                html.Div(dbc.Badge("New", className="mr-1", color="warning") if should_show_new_badge else None,
+                                html.Div(dbc.Badge("New", className="mr-1", color="success") if should_show_new_badge else None,
                                          id="new-badge-wrapper", style={"display": "inline"}),
                                 html.I(className="fa fa-question")
                             ], id="popover-help-target", className="float-right", color="white", size="sm"),
                             dbc.Popover(
                                 [
-                                    dbc.PopoverHeader("Current booking rules"),
+                                    dbc.PopoverHeader(html.Div([
+                                        "Current booking rules",
+                                        html.Br(),
+                                        html.Span(
+                                            f"Last updated: {gym.last_update:%Y-%m-%d}",
+                                            style={"font-style": "italic", "font-size": "small"}
+                                        ) if gym.last_update else None
+                                    ])),
                                     dbc.PopoverBody(create_gym_info(gym)),
                                 ],
                                 id="popover-help",
