@@ -544,17 +544,37 @@ def create_zone_picker(id, gym):
 
 
 @app.callback(
-    Output("popover-help", "is_open"),
+    [Output("popover-help", "is_open"), Output("last-clicked", "data")],
     [Input("popover-help-target", "n_clicks")],
-    [State("popover-help", "is_open")],
+    [State("popover-help", "is_open"), State("last-clicked", "data")],
 )
-def toggle_popover(n, is_open):
+def toggle_popover(n, is_open, old_data):
     if n:
-        return not is_open
-    return is_open
+        return not is_open, {"last": datetime.now()},
+    return is_open, old_data
 
 
-def create_main_layout(gym):
+@app.callback(
+    [Output("new-badge-wrapper", "hidden")],
+    [Input("popover-help", "is_open")],
+    [State("last-clicked", "data"), State("new-badge-wrapper", "hidden")],
+)
+def toggle_popover(is_open, data, old_hidden):
+    if is_open:
+        return old_hidden
+
+    last_clicked = parse(data.get("last", None))
+    gym = get_chosen_gym()
+    should_show_new_badge = gym.last_update is not None and last_clicked is not None and gym.last_update > last_clicked
+
+    return not should_show_new_badge
+
+
+def create_main_layout(gym, last_clicked):
+
+    last_clicked = parse(last_clicked.get("last", None))
+    should_show_new_badge = gym.last_update is not None and last_clicked is not None and gym.last_update > last_clicked
+
     return dbc.Row([
         html.Div(id="dummy2", hidden=True),
         html.Div(id="dummy", hidden=True),
@@ -565,8 +585,11 @@ def create_main_layout(gym):
                     dbc.Card([
                         dbc.CardHeader(html.Span([
                             "New booking",
-                            dbc.Button(html.I(className="fa fa-question"), id="popover-help-target",
-                                       className="float-right", color="white", size="sm"),
+                            dbc.Button([
+                                html.Div(dbc.Badge("New", className="mr-1", color="warning") if should_show_new_badge else None,
+                                         id="new-badge-wrapper", style={"display": "inline"}),
+                                html.I(className="fa fa-question")
+                            ], id="popover-help-target", className="float-right", color="white", size="sm"),
                             dbc.Popover(
                                 [
                                     dbc.PopoverHeader("Current booking rules"),

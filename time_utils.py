@@ -43,4 +43,7 @@ def as_date(k):
 def parse(s):
     if s is None:
         return None
-    return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")
+    try:
+        return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S")
+    except ValueError:
+        return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f")

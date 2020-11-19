@@ -1,3 +1,4 @@
+from dash.dependencies import State
 from flask_login import current_user
 
 from app import app, fapp
@@ -21,6 +22,7 @@ app.layout = html.Div([
                                           "source": None}),
     dcc.Store(id="bookings_store", data={}),
     dcc.Store(id="data-store", data={}),
+    dcc.Store(id="last-clicked", data={}, storage_type="local"),
     dcc.Store(id="view_store", data={"show": "peak", "zone": None}, storage_type='local'),
     dcc.Location(id="location"),
     html.Div(id="redirect"),
@@ -39,9 +41,10 @@ app.layout = html.Div([
 
 @app.callback(
     [Output("layout", "children"), Output("navbar", "children"), Output("navbar", "brand")],
-    [Input("location", "pathname")], group="view"
+    [Input("location", "pathname")],
+    [State("last-clicked", "data")], group="view"
 )
-def path(p):
+def path(p, last_clicked):
 
     navbar_items = [
         dbc.NavItem(dcc.LogoutButton("Logout", logout_url="/user/sign-out", className="btn btn-primary"))
@@ -65,7 +68,7 @@ def path(p):
         elif p and p.endswith("superadmin") and current_user.role == "ADMIN":
             layout = create_admin_layout()
         else:
-            layout = create_main_layout(get_chosen_gym())
+            layout = create_main_layout(get_chosen_gym(), last_clicked)
 
         txt = f"{get_chosen_gym().name}"
     return layout, navbar_items, txt

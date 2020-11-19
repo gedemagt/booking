@@ -37,6 +37,7 @@ def on_save_gym(book_before, max_days_ahead, max_persons, max_booking_length, ma
         g.max_number_per_booking = max_number_per_booking
         g.max_days_ahead = max_days_ahead
         g.book_before = book_before
+        g.last_update = datetime.now()
 
         for zone, name, capacity in zip(g.zones, zone_name, zone_max_people):
             zone.name = name

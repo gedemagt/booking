@@ -65,6 +65,8 @@ class Gym(db.Model):
     max_days_ahead = db.Column(db.Integer, nullable=True)
     book_before = db.Column(db.Integer, nullable=False, default=0)
 
+    last_update = db.Column(db.DateTime())
+
     admins = db.relationship('User', secondary=gym_admins, lazy='subquery',
                              backref=db.backref('admin_gyms', lazy=True))
 
