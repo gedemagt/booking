@@ -15,6 +15,12 @@ gym_admins = db.Table(
     db.Column('gym', db.Integer, db.ForeignKey('gyms.id'), primary_key=True)
 )
 
+gym_instructors = db.Table(
+    'gym_instructors',
+    db.Column('user', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('gym', db.Integer, db.ForeignKey('gyms.id'), primary_key=True)
+)
+
 gym_memberships = db.Table(
     'gym_memberships',
     db.Column('user', db.Integer, db.ForeignKey('users.id'), primary_key=True),
@@ -67,6 +73,9 @@ class Gym(db.Model):
 
     admins = db.relationship('User', secondary=gym_admins, lazy='subquery',
                              backref=db.backref('admin_gyms', lazy=True))
+
+    instructors = db.relationship('User', secondary=gym_instructors, lazy='subquery',
+                                  backref=db.backref('instructor_gyms', lazy=True))
 
     users = db.relationship('User', secondary=gym_memberships, lazy='subquery',
                              backref=db.backref('gyms', lazy=True))

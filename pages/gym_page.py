@@ -19,10 +19,10 @@ from utils import get_chosen_gym, get_zone
     [Trigger("save_gym_settings", "n_clicks")],
     [State("book_before", "value"), State("max_days_ahead", "value"), State("max_persons", "value"), State("max_booking_length", "value"), State("max_booking_per_user", "value"),
      State("max_time_per_user_per_day", "value"), State("max_number_per_booking", "value"),
-     State("gym_admins", "value"), State(dict(type="zone-name", id=ALL), "value"), State(dict(type="zone-max-people", id=ALL), "value")]
+     State("gym_admins", "value"), State("gym_instructors", "value"), State(dict(type="zone-name", id=ALL), "value"), State(dict(type="zone-max-people", id=ALL), "value")]
 )
 def on_save_gym(book_before, max_days_ahead, max_persons, max_booking_length, max_booking_per_user,
-                max_time_per_user_per_day, max_number_per_booking, admins, zone_name, zone_max_people):
+                max_time_per_user_per_day, max_number_per_booking, admins, instructors, zone_name, zone_max_people):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
@@ -43,6 +43,7 @@ def on_save_gym(book_before, max_days_ahead, max_persons, max_booking_length, ma
             zone.max_people = capacity
 
         get_chosen_gym().admins = [User.query.filter_by(id=x).first() for x in admins]
+        get_chosen_gym().instructors = [User.query.filter_by(id=x).first() for x in instructors]
         db.session.add(g)
         db.session.commit()
         return "Success", "success", True
@@ -118,6 +119,7 @@ def create_gym_admin_layout():
 
     users = gym.users
     admins = gym.admins
+    instructors = gym.instructors
 
     return dbc.Row([
         dbc.Col([], width=3),
@@ -205,6 +207,19 @@ def create_gym_admin_layout():
                         dcc.Dropdown(
                             id="gym_admins",
                             value=[x.id for x in admins],
+                            options=[
+                                {"label": x.username, "value": x.id} for x in users
+                            ],
+                            multi=True
+                        ),
+                    ],
+                ),
+                dbc.FormGroup(
+                    [
+                        dbc.Label("Gym instructors", html_for="gym_instructors"),
+                        dcc.Dropdown(
+                            id="gym_instructors",
+                            value=[x.id for x in instructors],
                             options=[
                                 {"label": x.username, "value": x.id} for x in users
                             ],
