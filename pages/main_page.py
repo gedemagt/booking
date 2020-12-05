@@ -715,7 +715,7 @@ def create_main_layout(gym):
                     ], style={"margin-top": "auto"}, width=3, className="d-none d-md-block"),
                     dbc.Col([
                         html.Div([
-                            dbc.Button("<", id="prev_week", color="primary", disabled=True, size="sm"),
+                            dbc.Button(html.I(className="fa fa-arrow-left"), id="prev_week", color="primary", disabled=True, size="sm"),
                             html.Span([
                                 html.Span([
                                     html.Span("Week", className="ml-3 mr-1"),
@@ -724,7 +724,7 @@ def create_main_layout(gym):
                                 ], id="week-text", style={"position": "relative"}),
 
                             ], style={"width": "100%"}),
-                            dbc.Button(">", id="next_week", color="primary", size="sm")
+                            dbc.Button(html.I(className="fa fa-arrow-right"), id="next_week", color="primary", size="sm")
                         ], style={"text-align": "center"})
                     ], width=12, md=6),
                     dbc.Col([
@@ -744,11 +744,11 @@ def create_main_layout(gym):
                     dbc.Row([
                         dbc.Col([
                             html.Div([
-                                dbc.Button("<", id="prev-zone", color="primary", size="sm"),
+                                dbc.Button(html.I(className="fa fa-arrow-left"), id="prev-zone", color="primary", size="sm"),
                                 html.Span([
                                     html.Span(id="mobile-zone", className="mx-3"),
                                 ]),
-                                dbc.Button(">", id="next-zone", color="primary", size="sm")
+                                dbc.Button(html.I(className="fa fa-arrow-right"), id="next-zone", color="primary", size="sm")
                             ], style={"text-align": "center"})
                         ], width=12)
                     ], justify="around", className="d-block d-md-none")
