@@ -415,10 +415,10 @@ def update_zone(data):
 
 @app.callback(
     Output("view_store", "data"),
-    [Trigger("show-all", "n_clicks"), Trigger("show-am", "n_clicks"),
-     Trigger("show-pm", "n_clicks"), Trigger("show-peak", "n_clicks"),
-     Trigger("show-all-2", "n_clicks"), Trigger("show-am-2", "n_clicks"),
-     Trigger("show-pm-2", "n_clicks"), Trigger("show-peak-2", "n_clicks"),
+    [Trigger("show-am", "n_clicks"), Trigger("show-pm", "n_clicks"),
+     Trigger("show-8-16", "n_clicks"), Trigger("show-15-23", "n_clicks"),
+     Trigger("show-am-2", "n_clicks"), Trigger("show-pm-2", "n_clicks"),
+     Trigger("show-8-16-2", "n_clicks"), Trigger("show-15-23-2", "n_clicks"),
      Trigger("zone-picker", "value"), Trigger("next-zone", "n_clicks"), Trigger("prev-zone", "n_clicks"), Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks")],
     [State("view_store", "data")]
 )
@@ -442,14 +442,14 @@ def show_selection(data):
         if trig.n_clicks is None:
             raise PreventUpdate
 
-        if trig.id.startswith("show-all"):
-            data["show"] = "all"
-        elif trig.id.startswith("show-am"):
+        if trig.id.startswith("show-am"):
             data["show"] = "am"
         elif trig.id.startswith("show-pm"):
             data["show"] = "pm"
-        elif trig.id.startswith("show-peak"):
-            data["show"] = "peak"
+        elif trig.id.startswith("show-8-16"):
+            data["show"] = "8-16"
+        elif trig.id.startswith("show-15-23"):
+            data["show"] = "15-23"
         elif trig.id.startswith("show-text"):
             data["show_text"] = not data.get("show_text", False)
 
@@ -692,10 +692,10 @@ def create_main_layout(gym):
                             dbc.Button(html.I(className="fa fa-users"), id="show-text-2",
                                        className="mx-1", color="primary"),
                             dbc.DropdownMenu([
-                                dbc.DropdownMenuItem("24h", id="show-all-2"),
                                 dbc.DropdownMenuItem("AM", id="show-am-2"),
                                 dbc.DropdownMenuItem("PM", id="show-pm-2"),
-                                dbc.DropdownMenuItem("Peak", id="show-peak-2")
+                                dbc.DropdownMenuItem("8-16", id="show-8-16-2"),
+                                dbc.DropdownMenuItem("15-23", id="show-15-23-2")
                             ], label="\u231A", color="primary")
                         ], justify="end")
                     ], width=5, style={"text-align": "right"})
@@ -732,10 +732,11 @@ def create_main_layout(gym):
                             dbc.Button(html.I(className="fa fa-users"), id="show-text",
                                        className="mx-1", color="primary"),
                             dbc.DropdownMenu([
-                                dbc.DropdownMenuItem("24h", id="show-all"),
+                                # dbc.DropdownMenuItem("24h", id="show-all"),
                                 dbc.DropdownMenuItem("AM", id="show-am"),
                                 dbc.DropdownMenuItem("PM", id="show-pm"),
-                                dbc.DropdownMenuItem("Peak", id="show-peak")
+                                dbc.DropdownMenuItem("8-16", id="show-8-16"),
+                                dbc.DropdownMenuItem("15-23", id="show-15-23")
                             ], label="\u231A", color="primary")
                         ], justify="end")
                     ], width=3, style={"text-align": "right"}, className="d-none d-md-block")
