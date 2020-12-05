@@ -18,7 +18,7 @@ from booking_logic import validate_booking, create_weekly_booking_map
 from components import create_gym_info
 from models import Booking, db
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
-from utils import get_chosen_gym, is_admin, get_zone
+from utils import get_chosen_gym, is_admin, get_zone, is_instructor
 
 BOOTSTRAP_BLUE = "#0275d8"
 BOOTSTRAP_GREEN = "#5cb85c"
@@ -121,7 +121,7 @@ def update_week(data, view_data):
     d = parse(data["d"])
     zone = get_zone(view_data["zone"])
 
-    can_next_week = is_admin() or \
+    can_next_week = (is_admin() or is_instructor) or \
                     zone.gym.max_days_ahead is None or \
                     datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d + timedelta(days=7)
     can_prev_week = datetime.now() < d
@@ -144,7 +144,7 @@ def on_week(data, view_data):
     zone = get_zone(view_data["zone"])
 
     if trig.id == "next_week":
-        if is_admin() or \
+        if (is_admin() or is_instructor) or \
                 zone.gym.max_days_ahead is None or \
                 datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7):
             data["d"] = d + timedelta(days=7)
@@ -192,7 +192,7 @@ def create_bookings():
                             html.Div([
                                 html.Span(dbc.Button(html.I(className="fa fa-sticky-note"), id=dict(type="edit-note", bookingid=b.id),
                                             color="primary", size="sm", className="mr-1"), title=b.note),
-                            ]) if is_admin() else None,
+                            ]) if (is_admin() or is_instructor) else None,
                             dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
                                        color="danger", size="sm")
                         ], justify="end")
@@ -266,7 +266,7 @@ def create_heatmap(d, f, t, zone_id):
     if week_start_day < datetime.now():
         all_bookings[:timeslot_index(datetime.now(), week_start_day)] = -4.5
 
-    if not is_admin() and zone.gym.max_days_ahead is not None and \
+    if not (is_admin() or is_instructor) and zone.gym.max_days_ahead is not None and \
             start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead) < week_end_day:
         latest = timeslot_index(start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead + 1), week_start_day)
         all_bookings[max(latest, 0):] = -4.5
@@ -385,7 +385,7 @@ def update_inputs(data, prev_from, prev_to, prev_date):
 
     if from_value is not None:
         to_min_index = from_value + 1
-        to_max_index = from_value + 1 + get_max_booking_length() if not is_admin() else len(OPTIONS) - 1
+        to_max_index = from_value + 1 + get_max_booking_length() if not (is_admin() or is_instructor) else len(OPTIONS) - 1
     else:
         to_min_index = from_min_index + 1
         to_max_index = len(OPTIONS) - 1
@@ -496,7 +496,7 @@ def on_screen_width(s):
 def nr_bookings_options(view_data):
     zone = get_zone(view_data["zone"])
 
-    if is_admin():
+    if is_admin() or is_instructor:
         max_nr = zone.max_people if zone.max_people is not None else zone.gym.max_people
     else:
         if zone.gym.max_number_per_booking is not None:
@@ -594,7 +594,7 @@ def create_main_layout(gym):
                                         )
                                     ], width=9)
                                 ], justify="between", className="my-1"),
-                            ], hidden=gym.max_number_per_booking == 1 and not is_admin()),
+                            ], hidden=gym.max_number_per_booking == 1 and not (is_admin() or is_instructor)),
                             dbc.Row([
                                 dbc.Col([
                                     html.Span("Day")
@@ -605,7 +605,7 @@ def create_main_layout(gym):
                                             id="date-picker",
                                             date=datetime.now().date(),
                                             min_date_allowed=datetime.now().date(),
-                                            max_date_allowed=datetime.now().date() + timedelta(days=gym.max_days_ahead) if not is_admin() and gym.max_days_ahead else None,
+                                            max_date_allowed=datetime.now().date() + timedelta(days=gym.max_days_ahead) if not (is_admin() or is_instructor) and gym.max_days_ahead else None,
                                             display_format="DD-MM-YYYY",
                                             clearable=False,
                                             first_day_of_week=1
