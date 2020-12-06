@@ -5,6 +5,7 @@ from pages.admin_page import create_admin_layout
 from pages.enter_gym_page import create_enter_gym_layout
 from pages.gym_page import create_gym_admin_layout
 from pages.main_page import create_main_layout
+from pages.stats_page import create_stats_layout
 from time_utils import start_of_week
 
 import dash_core_components as dcc
@@ -64,6 +65,8 @@ def path(p):
             layout = create_gym_admin_layout()
         elif p and p.endswith("superadmin") and current_user.role == "ADMIN":
             layout = create_admin_layout()
+        elif p and p.endswith("stats") and current_user.role == "ADMIN":
+            layout = create_stats_layout(get_chosen_gym())
         else:
             layout = create_main_layout(get_chosen_gym())
 
