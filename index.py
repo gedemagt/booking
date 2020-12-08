@@ -68,7 +68,7 @@ def path(p):
             layout = create_admin_layout()
         else:
             if datetime.now() < datetime(2021, 1, 3) - timedelta(days=get_chosen_gym().max_days_ahead + 1):
-                layout = dbc.Container(dbc.Row(html.Img(src="assets/3u624n.jpg"), justify="around", className="pt-3"))
+                layout = dbc.Container(dbc.Row(html.Img(src="assets/3u624n.jpg", style={"max-width": "100%"}), justify="around", className="pt-3"))
             else:
                 layout = create_main_layout(get_chosen_gym())
 
