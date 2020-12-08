@@ -19,10 +19,10 @@ from utils import get_chosen_gym, get_zone
     [Trigger("save_gym_settings", "n_clicks")],
     [State("book_before", "value"), State("max_days_ahead", "value"), State("max_persons", "value"), State("max_booking_length", "value"), State("max_booking_per_user", "value"),
      State("max_time_per_user_per_day", "value"), State("max_number_per_booking", "value"),
-     State("gym_admins", "value"), State(dict(type="zone-name", id=ALL), "value"), State(dict(type="zone-max-people", id=ALL), "value")]
+     State("gym_admins", "value"), State("gym_instructors", "value"), State(dict(type="zone-name", id=ALL), "value"), State(dict(type="zone-max-people", id=ALL), "value")]
 )
 def on_save_gym(book_before, max_days_ahead, max_persons, max_booking_length, max_booking_per_user,
-                max_time_per_user_per_day, max_number_per_booking, admins, zone_name, zone_max_people):
+                max_time_per_user_per_day, max_number_per_booking, admins, instructors, zone_name, zone_max_people):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
@@ -43,6 +43,7 @@ def on_save_gym(book_before, max_days_ahead, max_persons, max_booking_length, ma
             zone.max_people = capacity
 
         get_chosen_gym().admins = [User.query.filter_by(id=x).first() for x in admins]
+        get_chosen_gym().instructors = [User.query.filter_by(id=x).first() for x in instructors]
         db.session.add(g)
         db.session.commit()
         return "Success", "success", True
@@ -113,175 +114,187 @@ def on_new_zone():
     return create_zones_list()
 
 
+def create_setting(title, _input: dbc.Input, details: str = None):
+    return dbc.FormGroup(
+        [
+            dbc.Col([
+                dbc.Label(title, html_for=_input.id),
+                dbc.FormText(
+                    details,
+                    color="secondary",
+                ) if details else None
+            ],
+                width=8
+            ),
+            dbc.Col([
+                _input
+            ])
+        ], row=True
+    )
+
+
 def create_gym_admin_layout():
     gym = get_chosen_gym()
 
     users = gym.users
     admins = gym.admins
+    instructors = gym.instructors
 
     return dbc.Row([
-        dbc.Col([], width=3),
+        dbc.Col([], width=0, md=3),
         dbc.Col([
-            dbc.Label("Gym settings", size="lg"),
-            dbc.FormGroup([
-                dbc.FormGroup([
-                    dbc.Label("Gym code: ", size="lg", style={"font-weight": "bold"}),
-                    dbc.Label(gym.code, className="mx-3"),
-                ]),
-                dbc.FormGroup(
-                    [
-                        dbc.Label("Max number of persons", html_for="max_persons"),
-                        dbc.Input(type="number", id="max_persons", value=gym.max_people, min=1),
-                        dbc.FormText(
-                            "The capacity",
-                            color="secondary",
-                        ),
-                    ],
-                ),
-                dbc.FormGroup(
-                    [
-                        dbc.Label("Max booking length", html_for="max_booking_length"),
-                        dbc.Input(type="number", id="max_booking_length", value=gym.max_booking_length, min=1),
-                        dbc.FormText(
-                            "In number of timeslots (15 min)",
-                            color="secondary",
-                        ),
-                    ],
-                ),
-                dbc.FormGroup(
-                    [
-                        dbc.Label("Max active bookings", html_for="max_booking_per_user"),
-                        dbc.Input(type="number", id="max_booking_per_user", value=gym.max_booking_per_user, min=1),
-                        dbc.FormText(
-                            "The number of active booking a user can have",
-                            color="secondary",
-                        ),
-                    ],
-                ),
-                dbc.FormGroup(
-                    [
-                        dbc.Label("Max timeslots per user per day", html_for="max_time_per_user_per_day"),
-                        dbc.Input(type="number", id="max_time_per_user_per_day", value=gym.max_time_per_user_per_day,
-                                  min=1),
-                        dbc.FormText(
-                            "The maximum number of timeslots (15 min) a user can have in one day",
-                            color="secondary",
-                        ),
-                    ],
-                ),
-                dbc.FormGroup(
-                    [
-                        dbc.Label("Max persons per booking", html_for="max_number_per_booking"),
-                        dbc.Input(type="number", id="max_number_per_booking", value=gym.max_number_per_booking, min=1),
-                        dbc.FormText(
-                            "How many persons can one person book for",
-                            color="secondary",
-                        ),
-                    ],
-                ),
-                dbc.FormGroup(
-                    [
-                        dbc.Label("Max days ahead", html_for="max_days_ahead"),
-                        dbc.Input(type="number", id="max_days_ahead", value=gym.max_days_ahead, min=1),
-                        dbc.FormText(
-                            "How many days ahead can a booking be",
-                            color="secondary",
-                        ),
-                    ],
-                ),
-                dbc.FormGroup(
-                    [
-                        dbc.Label("Active bookings ends before", html_for="book_before"),
-                        dbc.Input(type="number", id="book_before", value=gym.book_before, min=0),
-                        dbc.FormText(
-                            "An active booking is only included in the limit of active bookings until end time minus this number of quarters",
-                            color="secondary",
-                        ),
-                    ],
-                ),
-                dbc.FormGroup(
-                    [
-                        dbc.Label("Gym admins", html_for="gym_admins"),
-                        dcc.Dropdown(
-                            id="gym_admins",
-                            value=[x.id for x in admins],
-                            options=[
-                                {"label": x.username, "value": x.id} for x in users
-                            ],
-                            multi=True
-                        ),
-                    ],
-                ),
-            ]),
             dbc.Row([
-                dbc.Col(dbc.Alert(id="save-gym-alert", is_open=False, duration=3000), width=8),
-                dbc.Col(dbc.Row(dbc.Button("Save", id="save_gym_settings", color="primary"), justify="end"), width=4)
-            ])
-        ], width=3),
-        dbc.Col([
-            dbc.Label("Zone settings", size="lg"),
-            html.Table(
-                create_zones_list(),
-                id="zone-edit",
-            ),
-            dbc.Modal([
-                dbc.ModalHeader("Delete bookings"),
-                dbc.ModalHeader([
-                    dbc.Form([
-                        dbc.FormGroup([
-                            dbc.Label("After"),
-                            html.Br(),
-                            dcc.DatePickerSingle(
-                                id="prune-start-date",
-                                date=datetime.now().date(),
-                                min_date_allowed=datetime.now().date()
-                            ),
-                            dbc.FormText("Bookings which start after this date are deleted")
-                        ]),
-                        dbc.FormGroup([
-                            dbc.Label("Zones"),
-                            dcc.Dropdown(
-                                options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
-                                multi=True,
-                                id="prune-zones"
-                            ),
-                            dbc.FormText("If none is chose, all bookings are deleted")
-                        ])
+                dbc.Col([
+                    dbc.Label("Gym settings", size="lg"),
+                ], width=12, md=6),
+                dbc.Col([
+                    dbc.Label(f"Gym code: {gym.code}", size="lg"),
+                ], width=12, md=6)
+            ]),
+            html.Hr(),
+            dbc.Row([
+                dbc.Col([
+                    dbc.FormGroup([
+                        create_setting("Max number of people",
+                                       dbc.Input(type="number", id="max_persons", value=gym.max_people, min=1)),
+                        create_setting("Max booking length",
+                                       dbc.Input(type="number", id="max_booking_length", value=gym.max_booking_length,
+                                                 min=1)),
+                        create_setting("Max active bookings per user",
+                                       dbc.Input(type="number", id="max_booking_per_user",
+                                                 value=gym.max_booking_per_user, min=1)),
+                        create_setting("Max timeslots per user per day",
+                                       dbc.Input(type="number", id="max_time_per_user_per_day",
+                                                 value=gym.max_time_per_user_per_day,
+                                                 min=1)),
+                        create_setting("Max persons per booking",
+                                       dbc.Input(type="number", id="max_number_per_booking",
+                                                 value=gym.max_number_per_booking,
+                                                 min=1)),
+                        create_setting("Max days ahead",
+                                       dbc.Input(type="number", id="max_days_ahead", value=gym.max_days_ahead, min=1)),
+                        create_setting("Active bookings ends before",
+                                       dbc.Input(type="number", id="book_before", value=gym.book_before, min=0),
+                                       details="An active booking is only included in the limit of active bookings until end time minus this number of quarters"),
                     ]),
-                    dbc.Alert(id="deleted-msg", color="danger", is_open=False)
-                ]),
-                dbc.ModalFooter(dbc.Button("Delete", color="danger", id="do-delete")),
-            ], id="prune-modal"),
-            dbc.Button("Delete bookings", id="prune-bookings", color="danger"),
-            dbc.Modal([
-                dbc.ModalHeader("Move bookings"),
-                dbc.ModalHeader([
-                    dbc.Form([
-                        dbc.FormGroup([
-                            dbc.Label("From"),
-                            html.Br(),
-                            dcc.Dropdown(
-                                options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
-                                id="from-zone"
-                            ),
-                            dbc.FormText("Bookings which start after this date are deleted")
-                        ]),
-                        dbc.FormGroup([
-                            dbc.Label("To"),
-                            dcc.Dropdown(
-                                options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
-                                id="to-zone"
-                            ),
-                            dbc.FormText("If none is chose, all bookings are deleted")
-                        ])
+                    html.Hr(),
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Button("Delete bookings", id="prune-bookings", color="danger"),
+                        ], width=6),
+                        dbc.Col([
+                            dbc.Button("Move bookings", id="move-bookings", color="danger"),
+                        ], width=6)
                     ]),
-                    dbc.Alert(id="moved-msg", color="danger", is_open=False)
-                ]),
-                dbc.ModalFooter(dbc.Button("Move", color="danger", id="do-move")),
-            ], id="move-bookings-modal"),
-            dbc.Button("Move bookings", id="move-bookings", color="danger"),
-        ], width=3)
-    ], className="p-3")
+                    html.Hr(),
+                ], width=12, md=6),
+                dbc.Col([
+                    dbc.FormGroup(
+                        [
+                            dbc.Label("Admins", html_for="gym_admins"),
+                            dcc.Dropdown(
+                                id="gym_admins",
+                                value=[x.id for x in admins],
+                                options=[
+                                    {"label": x.username, "value": x.id} for x in users
+                                ],
+                                multi=True
+                            ),
+                            dbc.FormText(
+                                "Admins can access this panel to change the settings for the gym. They are also not limited by the current booking restrictions.")
+                        ],
+                    ),
+                    dbc.FormGroup(
+                        [
+                            dbc.Label("Instructors", html_for="gym_instructors"),
+
+                            dcc.Dropdown(
+                                id="gym_instructors",
+                                value=[x.id for x in instructors],
+                                options=[
+                                    {"label": x.username, "value": x.id} for x in users
+                                ],
+                                multi=True
+                            ),
+                            dbc.FormText("Instructors are not limited by the current booking restrictions.")
+                        ],
+                    ),
+                    html.Hr(),
+                    dbc.Label("Zone settings", size="lg"),
+                    html.Table(
+                        create_zones_list(),
+                        id="zone-edit",
+                    ),
+
+                    dbc.Modal([
+                        dbc.ModalHeader("Delete bookings"),
+                        dbc.ModalHeader([
+                            dbc.Form([
+                                dbc.FormGroup([
+                                    dbc.Label("After"),
+                                    html.Br(),
+                                    dcc.DatePickerSingle(
+                                        id="prune-start-date",
+                                        date=datetime.now().date(),
+                                        min_date_allowed=datetime.now().date()
+                                    ),
+                                    dbc.FormText("Bookings which start after this date are deleted")
+                                ]),
+                                dbc.FormGroup([
+                                    dbc.Label("Zones"),
+                                    dcc.Dropdown(
+                                        options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
+                                        multi=True,
+                                        id="prune-zones"
+                                    ),
+                                    dbc.FormText("If none is chose, all bookings are deleted")
+                                ])
+                            ]),
+                            dbc.Alert(id="deleted-msg", color="danger", is_open=False)
+                        ]),
+                        dbc.ModalFooter(dbc.Button("Delete", color="danger", id="do-delete")),
+                    ], id="prune-modal"),
+
+                    dbc.Modal([
+                        dbc.ModalHeader("Move bookings"),
+                        dbc.ModalHeader([
+                            dbc.Form([
+                                dbc.FormGroup([
+                                    dbc.Label("From"),
+                                    html.Br(),
+                                    dcc.Dropdown(
+                                        options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
+                                        id="from-zone"
+                                    ),
+                                    dbc.FormText("Bookings which start after this date are deleted")
+                                ]),
+                                dbc.FormGroup([
+                                    dbc.Label("To"),
+                                    dcc.Dropdown(
+                                        options=[{"label": x.name, "value": x.id} for x in get_chosen_gym().zones],
+                                        id="to-zone"
+                                    ),
+                                    dbc.FormText("If none is chose, all bookings are deleted")
+                                ])
+                            ]),
+                            dbc.Alert(id="moved-msg", color="danger", is_open=False)
+                        ]),
+                        dbc.ModalFooter(dbc.Button("Move", color="danger", id="do-move")),
+                    ], id="move-bookings-modal"),
+
+                ], width=12, md=6)
+            ], className="p-3"),
+            dbc.Row([
+                dbc.Col([
+                    dbc.Row([
+                        dbc.Col(dbc.Alert(id="save-gym-alert", is_open=False, duration=3000), width=8),
+                        dbc.Col(dbc.Row(dbc.Button("Save", id="save_gym_settings", color="primary"), justify="end"),
+                                width=4)
+                    ])
+                ])
+            ], className="p-3"),
+        ], width=12, md=6)
+    ])
 
 
 @app.callback(

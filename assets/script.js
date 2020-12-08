@@ -31,16 +31,22 @@ function set_fig(data, view_data) {
     let y_range;
     switch(view_data.show) {
         case "am":
-            y_range = [12 * 4, 24 * 4]
+            y_range = [12 * 4 - 1, 24 * 4]
             break;
         case "pm":
             y_range = [0, 12 * 4]
             break;
         case "peak":
-            y_range = [4, 9 * 4]
+            y_range = [4 - 1, 9 * 4]
+            break;
+        case "8-16":
+            y_range = [8 * 4 - 1, 16 * 4]
+            break;
+        case "15-23":
+            y_range = [4 - 1, 9 * 4]
             break;
         default:
-            y_range = [0, 24 * 4]
+            y_range = [4 - 1, 9 * 4]
     }
 
     let BOOTSTRAP_BLUE = 'rgb(2, 117, 216)'

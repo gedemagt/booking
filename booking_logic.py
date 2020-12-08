@@ -6,7 +6,7 @@ from flask_login import current_user
 
 from models import Booking
 from time_utils import start_of_day, start_of_week, timeslot_index
-from utils import get_chosen_gym, is_admin, get_zone
+from utils import get_chosen_gym, is_admin, get_zone, is_instructor
 
 TS_M = 15
 TS_S = TS_M * 60
@@ -50,7 +50,7 @@ def validate_booking(start, end, number, zone_id):
     elif gym.max_people and np.any((all_bookings + start_end_array) > gym.max_people):
         raise AssertionError(f"Booking exceeds gym capacity")
 
-    if is_admin():
+    if is_admin() or is_instructor():
         return
 
     if number > (gym.max_number_per_booking if gym.max_number_per_booking else gym.max_people):

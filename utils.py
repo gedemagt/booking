@@ -7,6 +7,10 @@ def is_admin():
     return current_user in get_chosen_gym().admins or current_user.role == "ADMIN"
 
 
+def is_instructor():
+    return current_user in get_chosen_gym().instructors
+
+
 def zone_exists(_id):
     result = Zone.query.filter_by(id=_id).first()
     return result is not None
