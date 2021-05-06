@@ -1,8 +1,10 @@
-dash
-dash-html-components
-dash-core-components
-dash-extensions
-dash-bootstrap-components
+dash==1.17.0
+dash-bootstrap-components==0.10.7
+dash-core-components==1.13.0
+dash-extensions==0.0.31
+dash-html-components==1.1.1
+dash-renderer==1.8.3
+dash-table==4.11.0
 Flask
 Flask-SQLAlchemy
 Flask-User
