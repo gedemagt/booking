@@ -38,8 +38,16 @@ def get_max_booking_length():
 
 @app.callback(
     [Output("my-bookings", "children")],
-    [Trigger("data-store", "data"), Trigger("bookings_store", "data"), Trigger("edit-booking-modal", "is_open")])
+    [Trigger("data-store", "data"), Trigger("bookings_store", "data"), Trigger("edit-booking-modal", "is_open"),
+     Trigger(dict(type="delete-note", bookingid=ALL), "n_clicks")])
 def redraw_all():
+    t = get_triggered()
+    if isinstance(t.id, dict):
+        bid = t.id["bookingid"]
+        booking = db.session.query(Booking).filter_by(id=bid).first()
+        booking.note = None
+        db.session.add(booking)
+        db.session.commit()
     return create_bookings()
 
 
@@ -168,7 +176,7 @@ def create_bookings():
             dbc.Row([
                 dbc.Col(d.strftime("%d %b %Y"), width=6),
                 dbc.Col("#", width=2)
-            ], style={"background-color": "lightgrey"})
+            ], style={"background-color": "lightgrey"}, className="mt-2")
         )
 
         for b in k[d]:
@@ -190,17 +198,45 @@ def create_bookings():
                     dbc.Col([
                         dbc.Row([
                             html.Div([
-                                html.Span(dbc.Button(html.I(className="fa fa-sticky-note"), id=dict(type="edit-note", bookingid=b.id),
-                                            color="primary", size="sm", className="mr-1"), title=b.note),
-                            ]) if (is_admin() or is_instructor()) else None,
+                                html.Span(
+                                    dbc.Button(html.I(className="fa fa-sticky-note"), id=dict(type="add-note", bookingid=b.id),
+                                               color="primary", size="sm", className="mr-1"), title=b.note),
+                            ]) if (is_admin() or is_instructor()) and b.note is None else None,
                             dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
                                        color="danger", size="sm")
                         ], justify="end")
                     ], width=3)
-                ], className="my-1")
+                ], className="my-1"),
             )
+            if is_admin() or is_instructor():
+                if b.note:
+                    result.append(dbc.Row([
+                        dbc.Col(html.Div(
+                            [
+                                html.Div(
+                                    b.note,
+                                    className="p-1",
+                                ),
+                                dbc.Row([
+                                    dbc.Col([
+                                        html.Span(html.Button(
+                                            "Delete",
+                                            className="link-btn",
+                                            id=dict(type="delete-note", bookingid=b.id)
+                                        ), className="float-right mr-1"),
+                                        html.Span(html.Button(
+                                            "Edit",
+                                            className="link-btn",
+                                            id=dict(type="edit-note", bookingid=b.id)
+                                        ), className="float-right  mr-3")
+                                    ])
+                                ], justify="end")
+                            ],
+                            style={"background-color": "#ffffc2"}
+                        ), width=12)
+                    ]))
             result.append(html.Hr())
-
+        result.pop(-1)
     return dbc.Container([
         dbc.Table(result, style={"width": "100%"})
     ], fluid=True)
@@ -208,7 +244,9 @@ def create_bookings():
 
 @app.callback(
     [Output("edit-booking-modal", "is_open"), Output("b-edit-id", "children"), Output("booking-note-input", "value")],
-    [Trigger(dict(type="edit-note", bookingid=ALL), "n_clicks"), Trigger("ok-edit-booking", "n_clicks")],
+    [Trigger(dict(type="add-note", bookingid=ALL), "n_clicks"),
+     Trigger(dict(type="edit-note", bookingid=ALL), "n_clicks"),
+     Trigger("ok-edit-booking", "n_clicks")],
     [State("b-edit-id", "children"), State("booking-note-input", "value")],
 )
 def toggle_modal2(bid, note):
