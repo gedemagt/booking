@@ -89,30 +89,29 @@ def create_single_booking(b: Union[Booking, RepeatingBooking]):
 
 def create_bookings(bookings):
     k = defaultdict(list)
-
-
-    if isinstance(bookings[0], Booking):
-        for x in bookings:
-            if x.end >= datetime.now():
-                k[x.start.date()].append(x)
-    else:
-        for x in bookings:
-            k[x.start.strftime("%A")].append(x)
-
     result = []
-    for d in sorted(k.keys()):
-        result.append(
-            dbc.Row([
-                dbc.Col(d.strftime("%d %b %Y") if isinstance(bookings[0], Booking) else d, width=6),
-                dbc.Col("#", width=2)
-            ], style={"background-color": "lightgrey"}, className="mt-2")
-        )
+    if bookings:
+        if isinstance(bookings[0], Booking):
+            for x in bookings:
+                if x.end >= datetime.now():
+                    k[x.start.date()].append(x)
+        else:
+            for x in bookings:
+                k[x.start.strftime("%A")].append(x)
 
-        for b in sorted(k[d], key=lambda x: x.start):
-            result.append(create_single_booking(b))
+        for d in sorted(k.keys()):
+            result.append(
+                dbc.Row([
+                    dbc.Col(d.strftime("%d %b %Y") if isinstance(bookings[0], Booking) else d, width=6),
+                    dbc.Col("#", width=2)
+                ], style={"background-color": "lightgrey"}, className="mt-2")
+            )
 
-            result.append(html.Hr())
-        result.pop(-1)
+            for b in sorted(k[d], key=lambda x: x.start):
+                result.append(create_single_booking(b))
+
+                result.append(html.Hr())
+            result.pop(-1)
     return dbc.Container([
         dbc.Table(result, style={"width": "100%"})
     ], fluid=True)
