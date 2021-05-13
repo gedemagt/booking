@@ -111,14 +111,8 @@ class Zone(db.Model):
     __tablename__ = 'zones'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
-
     gym_id = db.Column(db.Integer(), db.ForeignKey('gyms.id', ondelete='CASCADE'), nullable=False)
-
     max_people = db.Column(db.Integer)
-    # max_booking_length = db.Column(db.Integer, nullable=True) # Number of timeslots
-    # max_booking_per_user = db.Column(db.Integer, nullable=True) # Number of active bookings
-    # max_time_per_user_per_day = db.Column(db.Integer, nullable=True) # Number of active bookings on one day
-    # max_number_per_booking = db.Column(db.Integer, nullable=False, default=1) # Number of persons per booking
 
     bookings = db.relationship('Booking', backref=db.backref('zone', lazy=True))
     repeating_bookings = db.relationship('RepeatingBooking', backref=db.backref('zone', lazy=True))

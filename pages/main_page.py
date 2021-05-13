@@ -552,21 +552,26 @@ def create_main_layout(gym):
                                     ])
                                 ], width=9)
                             ], justify="between", className="my-1"),
-                            html.Div(dbc.Row([
-                                dbc.Col([
-                                    html.Span("Repeat")
-                                ], width=3, style={"margin": "auto"}),
-                                dbc.Col([
-                                    dcc.Dropdown(
-                                        id="repeat-drop-down",
-                                        value=None,
-                                        options=[
-                                            dict(label="Weekly", value="w")
-                                        ],
-                                        searchable=False,
-                                    )
-                                ], width=9)
-                            ]), hidden=(not (is_instructor() or is_admin()))),
+                            html.Div([
+                                html.Hr(),
+                                dbc.Row([
+                                    dbc.Col([
+                                        html.Span("Repeat")
+                                    ], width=3, style={"margin": "auto"}),
+                                    dbc.Col([
+                                        dcc.Dropdown(
+                                            id="repeat-drop-down",
+                                            value=None,
+                                            options=[
+                                                dict(label="Weekly", value="w")
+                                            ],
+                                            searchable=False,
+                                        )
+                                    ], width=9)
+                                ]),
+                                dbc.FormText(
+                                    "Admins can schedule weekly repeated bookings by selecting Weekly in the dropdown. If nothing is selected, bookings are made for the user as usual. Notice they are shown in the admin-panel and NOT here.")
+                            ], hidden=(not (is_instructor() or is_admin()))),
                             dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
                             dbc.Alert("Empty", id="msg2", is_open=False, className="mt-3 mb-0"),
                         ]),

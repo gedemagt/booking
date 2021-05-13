@@ -28,25 +28,19 @@ REPEAT_DESCRIPTION = {
 
 def create_single_booking(b: Union[Booking, RepeatingBooking]):
     result = []
-    result.append(dbc.Row([
-        dbc.Col([
-            dbc.Row([
-                dbc.Col([
-                    f'{b.start.strftime("%H:%M")} - {b.end.strftime("%H:%M")}',
-                ], width=12),
-                dbc.Col([
-                    b.zone.name if len(get_chosen_gym().zones) > 1 else "",
-                ], width=12),
-                dbc.Col([
-                    f"{REPEAT_DESCRIPTION[b.repeat]}: {b.start:%A}",
-                ], width=12) if isinstance(b, RepeatingBooking) else None
-            ])
-        ], width=6),
-        dbc.Col([
-            b.number,
-        ], width=2),
-        dbc.Col([
-            dbc.Row([
+    result.append(html.Div([
+        dbc.Row([
+            dbc.Col([
+                html.Div(f'{b.start.strftime("%H:%M")} - {b.end.strftime("%H:%M")}'),
+                html.Div(b.zone.name)
+            ], width=6),
+            dbc.Col([
+                b.number
+            ], width=3),
+            dbc.Col([
+                dbc.Button(html.I(className="fa fa-trash"),
+                       id=dict(type="delete-booking", bookingid=b.id, bookingtype=b.__class__.__name__),
+                       color="danger", size="sm", className="float-right"),
                 html.Div([
                     html.Span(
                         dbc.Button(
@@ -54,15 +48,13 @@ def create_single_booking(b: Union[Booking, RepeatingBooking]):
                             id=dict(type="add-note", bookingid=b.id, bookingtype=b.__class__.__name__),
                             color="primary",
                             size="sm",
-                            className="mr-1"
+                            className="mr-1 float-right"
                         ),
                         title=b.note
                     ),
-                ]) if (is_admin() or is_instructor()) and b.note is None else None,
-                dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id, bookingtype=b.__class__.__name__),
-                           color="danger", size="sm")
-            ], justify="end")
-        ], width=3)
+                ]) if (is_admin() or is_instructor()) and b.note is None else None
+            ], width=3)
+        ]),
     ], className="my-1"))
 
     if is_admin() or is_instructor():
@@ -77,12 +69,12 @@ def create_single_booking(b: Union[Booking, RepeatingBooking]):
                         dbc.Row([
                             dbc.Col([
                                 html.Span(html.Button(
-                                    "Delete",
+                                    "delete",
                                     className="link-btn",
                                     id=dict(type="delete-note", bookingid=b.id, bookingtype=b.__class__.__name__)
                                 ), className="float-right mr-1"),
                                 html.Span(html.Button(
-                                    "Edit",
+                                    "edit",
                                     className="link-btn",
                                     id=dict(type="edit-note", bookingid=b.id, bookingtype=b.__class__.__name__)
                                 ), className="float-right  mr-3")
@@ -98,20 +90,25 @@ def create_single_booking(b: Union[Booking, RepeatingBooking]):
 def create_bookings(bookings):
     k = defaultdict(list)
 
-    for x in bookings:
-        if x.end >= datetime.now():
-            k[x.start.date()].append(x)
+
+    if isinstance(bookings[0], Booking):
+        for x in bookings:
+            if x.end >= datetime.now():
+                k[x.start.date()].append(x)
+    else:
+        for x in bookings:
+            k[x.start.strftime("%A")].append(x)
 
     result = []
     for d in sorted(k.keys()):
         result.append(
             dbc.Row([
-                dbc.Col(d.strftime("%d %b %Y"), width=6),
+                dbc.Col(d.strftime("%d %b %Y") if isinstance(bookings[0], Booking) else d, width=6),
                 dbc.Col("#", width=2)
             ], style={"background-color": "lightgrey"}, className="mt-2")
         )
 
-        for b in k[d]:
+        for b in sorted(k[d], key=lambda x: x.start):
             result.append(create_single_booking(b))
 
             result.append(html.Hr())

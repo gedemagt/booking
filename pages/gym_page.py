@@ -142,19 +142,16 @@ def create_gym_admin_layout():
     instructors = gym.instructors
 
     return dbc.Row([
-        dbc.Col([], width=0, md=3),
+        dbc.Col([], width=0, md=2),
         dbc.Col([
             dbc.Row([
-                dbc.Col([
-                    dbc.Label("Gym settings", size="lg"),
-                ], width=12, md=6),
-                dbc.Col([
-                    dbc.Label(f"Gym code: {gym.code}", size="lg"),
-                ], width=12, md=6)
+                dbc.Col(dbc.Label("Settings", size="lg"))
             ]),
             html.Hr(),
             dbc.Row([
+
                 dbc.Col([
+                    dbc.Label("Restrictions", size="lg"),
                     dbc.FormGroup([
                         create_setting("Max number of people",
                                        dbc.Input(type="number", id="max_persons", value=gym.max_people, min=1)),
@@ -179,6 +176,7 @@ def create_gym_admin_layout():
                                        details="An active booking is only included in the limit of active bookings until end time minus this number of quarters"),
                     ]),
                     html.Hr(),
+                    dbc.Label("Bookings", size="lg"),
                     dbc.Row([
                         dbc.Col([
                             dbc.Button("Delete bookings", id="prune-bookings", color="danger"),
@@ -186,10 +184,10 @@ def create_gym_admin_layout():
                         dbc.Col([
                             dbc.Button("Move bookings", id="move-bookings", color="danger"),
                         ], width=6)
-                    ]),
-                    html.Hr(),
+                    ])
                 ], width=12, md=6),
                 dbc.Col([
+                    dbc.Label(f"Gym code: {gym.code}", size="lg"),
                     dbc.FormGroup(
                         [
                             dbc.Label("Admins", html_for="gym_admins"),
@@ -221,7 +219,7 @@ def create_gym_admin_layout():
                         ],
                     ),
                     html.Hr(),
-                    dbc.Label("Zone settings", size="lg"),
+                    dbc.Label("Zones", size="lg"),
                     html.Table(
                         create_zones_list(),
                         id="zone-edit",
@@ -284,20 +282,17 @@ def create_gym_admin_layout():
                     ], id="move-bookings-modal"),
 
                 ], width=12, md=6),
-                dbc.Col([
-                    gym_bookings_list
-                ])
-            ], className="p-3"),
+            ]),
+            html.Hr(),
             dbc.Row([
-                dbc.Col([
-                    dbc.Row([
-                        dbc.Col(dbc.Alert(id="save-gym-alert", is_open=False, duration=3000), width=8),
-                        dbc.Col(dbc.Row(dbc.Button("Save", id="save_gym_settings", color="primary"), justify="end"),
-                                width=4)
-                    ])
-                ])
-            ], className="p-3"),
-        ], width=12, md=6)
+                dbc.Col(dbc.Alert(id="save-gym-alert", is_open=False, duration=3000), width=8),
+                dbc.Col(dbc.Row(dbc.Button("Save", id="save_gym_settings", color="primary"), justify="end"), width=4)
+            ])
+        ], width=12, md=6),
+        dbc.Col([
+            dbc.Label("Gym bookings", size="lg"),
+            gym_bookings_list
+        ], width=12, md=3),
     ])
 
 
