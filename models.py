@@ -57,6 +57,21 @@ class Booking(db.Model):
     zone_id = db.Column(db.Integer(), db.ForeignKey('zones.id'), nullable=False)
 
 
+class RepeatingBooking(db.Model):
+    __tablename__ = 'repeating_bookings'
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.Integer, default=1)
+    start = db.Column(db.DateTime, nullable=False)
+    end = db.Column(db.DateTime, nullable=False)
+
+    repeat_end = db.Column(db.DateTime, nullable=True)
+
+    note = db.Column(db.String, nullable=True)
+    repeat = db.Column(db.String, nullable=False)
+
+    zone_id = db.Column(db.Integer(), db.ForeignKey('zones.id'), nullable=False)
+
+
 class Gym(db.Model):
     __tablename__ = 'gyms'
     id = db.Column(db.Integer, primary_key=True)
@@ -68,7 +83,7 @@ class Gym(db.Model):
     max_booking_per_user = db.Column(db.Integer, nullable=True) # Number of active bookings
     max_time_per_user_per_day = db.Column(db.Integer, nullable=True) # Number of active bookings on one day
     max_number_per_booking = db.Column(db.Integer, nullable=False, default=1) # Number of persons per booking
-    max_days_ahead = db.Column(db.Integer, nullable=True)
+    max_days_ahead = db.Column(db.Integer, nullable=True, default=7)
     book_before = db.Column(db.Integer, nullable=False, default=0)
 
     admins = db.relationship('User', secondary=gym_admins, lazy='subquery',
@@ -106,6 +121,7 @@ class Zone(db.Model):
     # max_number_per_booking = db.Column(db.Integer, nullable=False, default=1) # Number of persons per booking
 
     bookings = db.relationship('Booking', backref=db.backref('zone', lazy=True))
+    repeating_bookings = db.relationship('RepeatingBooking', backref=db.backref('zone', lazy=True))
 
 
 def init_db(fapp, user_manager):

@@ -4,7 +4,7 @@ import humanize
 import numpy as np
 from flask_login import current_user
 
-from models import Booking
+from models import Booking, RepeatingBooking
 from time_utils import start_of_day, start_of_week, timeslot_index
 from utils import get_chosen_gym, is_admin, get_zone, is_instructor
 
@@ -42,7 +42,7 @@ def validate_booking(start, end, number, zone_id):
         raise AssertionError("Start must come before end")
 
     # Then we check capacity
-    all_bookings, zone_bookings = create_daily_booking_map(start, zone_id)
+    all_bookings = create_daily_booking_map(start, zone_id)
 
     start_end_array = create_daily_from_to(timeslot_index(start), timeslot_index(end)) * number
     if zone.max_people and np.any((all_bookings + start_end_array) > zone.max_people):
@@ -89,11 +89,37 @@ def validate_booking(start, end, number, zone_id):
             raise AssertionError(f"You can not book more than {maxlen} per day")
 
 
-def create_daily_booking_map(d, zone_id=None):
+def create_repeating_booking_map(start, days, zone_id):
+    all_bookings = np.zeros(24 * 4 * days)
+
+    for b in RepeatingBooking.query\
+            .filter(RepeatingBooking.start <= start + timedelta(days=days + 1))\
+            .filter_by(zone_id=zone_id).all():
+
+        if b.repeat_end and b.repeat_end < (start + timedelta(days=days + 1)):
+            continue
+
+        if b.repeat == "w":
+
+            for dt in range(days):
+                _day = start + timedelta(days=dt)
+                if _day.weekday() == b.start.weekday():
+                    new_start = b.start.replace(year=_day.year, month=_day.month, day=_day.day)
+                    new_end = b.end.replace(year=_day.year, month=_day.month, day=_day.day)
+                    start_ts = timeslot_index(new_start, start)
+                    end_ts = timeslot_index(new_end, start)
+                    start_end_array = create_from_to(start_ts, end_ts, days) * b.number
+
+                    all_bookings += start_end_array
+
+    return all_bookings
+
+
+def create_daily_booking_map(d, zone_id):
+
     day = start_of_day(d)
 
-    all_bookings = np.zeros(24 * 4)
-    zone_bookings = np.zeros(24 * 4)
+    all_bookings = create_repeating_booking_map(day, 1, zone_id) #np.zeros(24 * 4)
 
     for b in Booking.query.filter(Booking.start >= day).filter(Booking.end <= day + timedelta(days=1)).filter_by(zone_id=zone_id).all():
         start = (b.start - day).total_seconds() / TS_S
@@ -103,10 +129,7 @@ def create_daily_booking_map(d, zone_id=None):
 
         all_bookings += start_end_array
 
-        if zone_id and b.zone.id == zone_id:
-            zone_bookings += start_end_array
-
-    return all_bookings, zone_bookings
+    return all_bookings
 
 
 def create_weekly_booking_map(d, zone, days=7):
@@ -127,5 +150,7 @@ def create_weekly_booking_map(d, zone, days=7):
 
         if current_user and b.user.id == current_user.id:
             my_bookings += start_end_array
+
+    all_bookings += create_repeating_booking_map(week_start_day, days, zone)
 
     return all_bookings, my_bookings

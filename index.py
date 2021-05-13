@@ -35,6 +35,18 @@ app.layout = html.Div([
         id="navbar",
         fluid=True
     ),
+    dbc.Modal(
+        [
+            html.Div(id="b-edit-id", hidden=True),
+            html.Div(id="b-edit-type", hidden=True),
+            dbc.ModalHeader("Booking note"),
+            dbc.ModalBody(dbc.Textarea(id="booking-note-input")),
+            dbc.ModalFooter(
+                dbc.Button("Save", id="ok-edit-booking", color="primary", className="ml-auto")
+            ),
+        ],
+        id="edit-booking-modal",
+    ),
     dbc.Container(html.Div(id="layout"), fluid=True)
 ])
 

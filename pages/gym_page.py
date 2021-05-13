@@ -10,6 +10,7 @@ from dash_extensions.snippets import get_triggered
 
 from app import app
 from models import db, User, Zone, Booking
+from pages.bookings_list import gym_bookings_list
 from time_utils import as_datetime
 from utils import get_chosen_gym, get_zone
 
@@ -282,7 +283,10 @@ def create_gym_admin_layout():
                         dbc.ModalFooter(dbc.Button("Move", color="danger", id="do-move")),
                     ], id="move-bookings-modal"),
 
-                ], width=12, md=6)
+                ], width=12, md=6),
+                dbc.Col([
+                    gym_bookings_list
+                ])
             ], className="p-3"),
             dbc.Row([
                 dbc.Col([

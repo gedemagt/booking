@@ -1,10 +1,9 @@
-from collections import defaultdict
 from datetime import datetime, timedelta, date
 
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
-from dash.dependencies import ALL, ClientsideFunction
+from dash.dependencies import ClientsideFunction
 from dash_extensions.enrich import Output, Input, State, Trigger
 from dash.exceptions import PreventUpdate
 from dash_extensions.snippets import get_triggered
@@ -16,7 +15,8 @@ import config
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
 from components import create_gym_info
-from models import Booking, db
+from models import Booking, db, RepeatingBooking
+from pages.bookings_list import my_bookings_list
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin, get_zone, is_instructor
 
@@ -37,21 +37,6 @@ def get_max_booking_length():
 
 
 @app.callback(
-    [Output("my-bookings", "children")],
-    [Trigger("data-store", "data"), Trigger("bookings_store", "data"), Trigger("edit-booking-modal", "is_open"),
-     Trigger(dict(type="delete-note", bookingid=ALL), "n_clicks")])
-def redraw_all():
-    t = get_triggered()
-    if isinstance(t.id, dict):
-        bid = t.id["bookingid"]
-        booking = db.session.query(Booking).filter_by(id=bid).first()
-        booking.note = None
-        db.session.add(booking)
-        db.session.commit()
-    return create_bookings()
-
-
-@app.callback(
     [Output("data-store", "data")],
     [Input("selection_store", "data"), Input("view_store", "data"), Trigger("bookings_store", "data")])
 def redraw_all(data, view_data):
@@ -67,29 +52,13 @@ def redraw_all(data, view_data):
 
 
 @app.callback(
-    Output("bookings_store", "data"),
-    Trigger(dict(type="delete-booking", bookingid=ALL), "n_clicks")
-)
-def on_delete():
-    trig = get_triggered()
-    if trig.id is not None and trig.n_clicks is not None:
-        try:
-            db.session.delete(db.session.query(Booking).filter_by(id=trig.id["bookingid"]).first())
-            db.session.commit()
-            return {"deleted": trig.id["bookingid"]}
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-    raise PreventUpdate
-
-
-@app.callback(
     [Output("msg", "children"), Output("msg", "color"),
      Output("msg", "is_open"), Output("selection_store", "data")],
     [Trigger("book", "n_clicks")],
-    [State("selection_store", "data"), State("nr_bookings", "value"), State("view_store", "data")], group="ok"
+    [State("selection_store", "data"), State("nr_bookings", "value"),
+     State("view_store", "data"), State("repeat-drop-down", "value")], group="ok"
 )
-def on_booking(data, nr_bookings, view_data):
+def on_booking(data, nr_bookings, view_data, repeat):
     msg = ""
     msg_color = "warning"
     if date is not None and data["f"] is not None and data["t"] is not None:
@@ -98,10 +67,17 @@ def on_booking(data, nr_bookings, view_data):
         b_end = datetime.strptime(data["t"], "%Y-%m-%dT%H:%M:%S")
 
         try:
-            validate_booking(b_start, b_end, nr_bookings, view_data["zone"])
-            db.session.add(Booking(start=b_start, end=b_end, user=current_user,
-                                   zone=get_zone(view_data["zone"]), number=nr_bookings))
-            db.session.commit()
+
+            if repeat and (is_instructor() or is_admin()):
+                db.session.add(RepeatingBooking(start=b_start, end=b_end, zone=get_zone(view_data["zone"]), number=nr_bookings, repeat=repeat))
+                db.session.commit()
+            else:
+                validate_booking(b_start, b_end, nr_bookings, view_data["zone"])
+                booking = Booking(start=b_start, end=b_end, user=current_user,
+                                  zone=get_zone(view_data["zone"]), number=nr_bookings)
+                db.session.add(booking)
+                db.session.commit()
+
             msg = "Success"
             msg_color = "success"
         except AssertionError as e:
@@ -161,108 +137,6 @@ def on_week(data, view_data):
             data["d"] = d - timedelta(days=7)
 
     return data
-
-
-def create_bookings():
-    k = defaultdict(list)
-
-    for x in current_user.bookings:
-        if x.end >= datetime.now():
-            k[x.start.date()].append(x)
-
-    result = []
-    for d in sorted(k.keys()):
-        result.append(
-            dbc.Row([
-                dbc.Col(d.strftime("%d %b %Y"), width=6),
-                dbc.Col("#", width=2)
-            ], style={"background-color": "lightgrey"}, className="mt-2")
-        )
-
-        for b in k[d]:
-            result.append(
-                dbc.Row([
-                    dbc.Col([
-                        dbc.Row([
-                            dbc.Col([
-                                f'{b.start.strftime("%H:%M")} - {b.end.strftime("%H:%M")}',
-                            ], width=12),
-                            dbc.Col([
-                                b.zone.name if len(get_chosen_gym().zones) > 1 else "",
-                            ], width=12),
-                        ])
-                    ], width=6),
-                    dbc.Col([
-                        b.number,
-                    ], width=2),
-                    dbc.Col([
-                        dbc.Row([
-                            html.Div([
-                                html.Span(
-                                    dbc.Button(html.I(className="fa fa-sticky-note"), id=dict(type="add-note", bookingid=b.id),
-                                               color="primary", size="sm", className="mr-1"), title=b.note),
-                            ]) if (is_admin() or is_instructor()) and b.note is None else None,
-                            dbc.Button(html.I(className="fa fa-trash"), id=dict(type="delete-booking", bookingid=b.id),
-                                       color="danger", size="sm")
-                        ], justify="end")
-                    ], width=3)
-                ], className="my-1"),
-            )
-            if is_admin() or is_instructor():
-                if b.note:
-                    result.append(dbc.Row([
-                        dbc.Col(html.Div(
-                            [
-                                html.Div(
-                                    b.note,
-                                    className="p-1",
-                                ),
-                                dbc.Row([
-                                    dbc.Col([
-                                        html.Span(html.Button(
-                                            "Delete",
-                                            className="link-btn",
-                                            id=dict(type="delete-note", bookingid=b.id)
-                                        ), className="float-right mr-1"),
-                                        html.Span(html.Button(
-                                            "Edit",
-                                            className="link-btn",
-                                            id=dict(type="edit-note", bookingid=b.id)
-                                        ), className="float-right  mr-3")
-                                    ])
-                                ], justify="end")
-                            ],
-                            style={"background-color": "#ffffc2"}
-                        ), width=12)
-                    ]))
-            result.append(html.Hr())
-        result.pop(-1)
-    return dbc.Container([
-        dbc.Table(result, style={"width": "100%"})
-    ], fluid=True)
-
-
-@app.callback(
-    [Output("edit-booking-modal", "is_open"), Output("b-edit-id", "children"), Output("booking-note-input", "value")],
-    [Trigger(dict(type="add-note", bookingid=ALL), "n_clicks"),
-     Trigger(dict(type="edit-note", bookingid=ALL), "n_clicks"),
-     Trigger("ok-edit-booking", "n_clicks")],
-    [State("b-edit-id", "children"), State("booking-note-input", "value")],
-)
-def toggle_modal2(bid, note):
-    if isinstance(get_triggered().id, dict) and get_triggered().n_clicks is not None:
-        # print(get_triggered().__dict__)
-        new_bid = int(get_triggered().id["bookingid"])
-        b = Booking.query.filter_by(id=new_bid).first()
-        return True, new_bid, b.note
-    elif get_triggered().id == "ok-edit-booking":
-        b = Booking.query.filter_by(id=int(bid)).first()
-        if note and note.strip():
-            b.note = note
-            db.session.add(b)
-            db.session.commit()
-        return False, None, ""
-    return False, None, ""
 
 
 @app.callback(
@@ -678,6 +552,21 @@ def create_main_layout(gym):
                                     ])
                                 ], width=9)
                             ], justify="between", className="my-1"),
+                            html.Div(dbc.Row([
+                                dbc.Col([
+                                    html.Span("Repeat")
+                                ], width=3, style={"margin": "auto"}),
+                                dbc.Col([
+                                    dcc.Dropdown(
+                                        id="repeat-drop-down",
+                                        value=None,
+                                        options=[
+                                            dict(label="Weekly", value="w")
+                                        ],
+                                        searchable=False,
+                                    )
+                                ], width=9)
+                            ]), hidden=(not (is_instructor() or is_admin()))),
                             dbc.Alert(id="msg", is_open=False, duration=5000, className="mt-3"),
                             dbc.Alert("Empty", id="msg2", is_open=False, className="mt-3 mb-0"),
                         ]),
@@ -692,18 +581,7 @@ def create_main_layout(gym):
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
-                            dbc.Modal(
-                                [
-                                    html.Div(id="b-edit-id", hidden=True),
-                                    dbc.ModalHeader("Booking note"),
-                                    dbc.ModalBody(dbc.Textarea(id="booking-note-input")),
-                                    dbc.ModalFooter(
-                                        dbc.Button("Save", id="ok-edit-booking", color="primary", className="ml-auto")
-                                    ),
-                                ],
-                                id="edit-booking-modal",
-                            ),
-                            html.Div(id="my-bookings")
+                            my_bookings_list
                         ])
                     ])
                 ])
