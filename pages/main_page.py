@@ -33,7 +33,7 @@ def parse_heatmap_click(data):
 
 
 def get_max_booking_length():
-    return get_chosen_gym().max_booking_length if get_chosen_gym().max_booking_length is not None else 24*4
+    return get_chosen_gym().max_booking_length if get_chosen_gym().max_booking_length is not None else 24 * 4
 
 
 @app.callback(
@@ -69,7 +69,9 @@ def on_booking(data, nr_bookings, view_data, repeat):
         try:
 
             if repeat and (is_instructor() or is_admin()):
-                db.session.add(RepeatingBooking(start=b_start, end=b_end, zone=get_zone(view_data["zone"]), number=nr_bookings, repeat=repeat))
+                db.session.add(
+                    RepeatingBooking(start=b_start, end=b_end, zone=get_zone(view_data["zone"]), number=nr_bookings,
+                                     repeat=repeat))
                 db.session.commit()
             else:
                 validate_booking(b_start, b_end, nr_bookings, view_data["zone"])
@@ -101,7 +103,6 @@ def on_booking(data, nr_bookings, view_data, repeat):
     [Input("selection_store", "data"), Input("view_store", "data"), Trigger("location", "pathname")]
 )
 def update_week(data, view_data):
-
     d = parse(data["d"])
     zone = get_zone(view_data["zone"])
 
@@ -130,7 +131,7 @@ def on_week(data, view_data):
     if trig.id == "next_week":
         if (is_admin() or is_instructor()) or \
                 zone.gym.max_days_ahead is None or \
-                datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d+timedelta(days=7):
+                datetime.now() + timedelta(days=zone.gym.max_days_ahead) > d + timedelta(days=7):
             data["d"] = d + timedelta(days=7)
     if trig.id == "prev_week":
         if datetime.now() < d:
@@ -180,7 +181,8 @@ def create_heatmap(d, f, t, zone_id):
 
     if not (is_admin() or is_instructor()) and zone.gym.max_days_ahead is not None and \
             start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead) < week_end_day:
-        latest = timeslot_index(start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead + 1), week_start_day)
+        latest = timeslot_index(start_of_day(datetime.now()) + timedelta(days=zone.gym.max_days_ahead + 1),
+                                week_start_day)
         all_bookings[max(latest, 0):] = -4.5
 
     z = np.flipud(np.reshape(all_bookings, (days, 24 * 4)).transpose())
@@ -199,7 +201,6 @@ OPTIONS = [{'label': (datetime(1, 1, 1) + timedelta(minutes=15 * x)).strftime("%
     [State("nr_bookings", "value"), State("view_store", "data")]
 )
 def val_booking(data, nr, view_data):
-
     if data["f"] is not None and data["t"] is not None:
         try:
             validate_booking(parse(data["f"]), parse(data["t"]), nr, view_data["zone"])
@@ -297,7 +298,8 @@ def update_inputs(data, prev_from, prev_to, prev_date):
 
     if from_value is not None:
         to_min_index = from_value + 1
-        to_max_index = from_value + 1 + get_max_booking_length() if not (is_admin() or is_instructor()) else len(OPTIONS) - 1
+        to_max_index = from_value + 1 + get_max_booking_length() if not (is_admin() or is_instructor()) else len(
+            OPTIONS) - 1
     else:
         to_min_index = from_min_index + 1
         to_max_index = len(OPTIONS) - 1
@@ -331,7 +333,8 @@ def update_zone(data):
      Trigger("show-8-16", "n_clicks"), Trigger("show-15-23", "n_clicks"),
      Trigger("show-am-2", "n_clicks"), Trigger("show-pm-2", "n_clicks"),
      Trigger("show-8-16-2", "n_clicks"), Trigger("show-15-23-2", "n_clicks"),
-     Trigger("zone-picker", "value"), Trigger("next-zone", "n_clicks"), Trigger("prev-zone", "n_clicks"), Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks")],
+     Trigger("zone-picker", "value"), Trigger("next-zone", "n_clicks"), Trigger("prev-zone", "n_clicks"),
+     Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks")],
     [State("view_store", "data")]
 )
 def show_selection(data):
@@ -416,7 +419,7 @@ def nr_bookings_options(view_data):
         else:
             max_nr = zone.max_people if zone.max_people is not None else zone.gym.max_people
 
-    return [{"value": x, "label": x} for x in range(1, max_nr+1)]
+    return [{"value": x, "label": x} for x in range(1, max_nr + 1)]
 
 
 @app.callback(
@@ -517,7 +520,9 @@ def create_main_layout(gym):
                                             id="date-picker",
                                             date=datetime.now().date(),
                                             min_date_allowed=datetime.now().date(),
-                                            max_date_allowed=datetime.now().date() + timedelta(days=gym.max_days_ahead) if not (is_admin() or is_instructor()) and gym.max_days_ahead else None,
+                                            max_date_allowed=datetime.now().date() + timedelta(
+                                                days=gym.max_days_ahead) if not (
+                                                        is_admin() or is_instructor()) and gym.max_days_ahead else None,
                                             display_format="DD-MM-YYYY",
                                             clearable=False,
                                             first_day_of_week=1
@@ -636,7 +641,8 @@ def create_main_layout(gym):
                     ], style={"margin-top": "auto"}, width=3, className="d-none d-md-block"),
                     dbc.Col([
                         html.Div([
-                            dbc.Button(html.I(className="fa fa-arrow-left"), id="prev_week", color="primary", disabled=True, size="sm"),
+                            dbc.Button(html.I(className="fa fa-arrow-left"), id="prev_week", color="primary",
+                                       disabled=True, size="sm"),
                             html.Span([
                                 html.Span([
                                     html.Span("Week", className="ml-3 mr-1"),
@@ -645,7 +651,8 @@ def create_main_layout(gym):
                                 ], id="week-text", style={"position": "relative"}),
 
                             ], style={"width": "100%"}),
-                            dbc.Button(html.I(className="fa fa-arrow-right"), id="next_week", color="primary", size="sm")
+                            dbc.Button(html.I(className="fa fa-arrow-right"), id="next_week", color="primary",
+                                       size="sm")
                         ], style={"text-align": "center"})
                     ], width=12, md=6),
                     dbc.Col([
@@ -666,11 +673,13 @@ def create_main_layout(gym):
                     dbc.Row([
                         dbc.Col([
                             html.Div([
-                                dbc.Button(html.I(className="fa fa-arrow-left"), id="prev-zone", color="primary", size="sm"),
+                                dbc.Button(html.I(className="fa fa-arrow-left"), id="prev-zone", color="primary",
+                                           size="sm"),
                                 html.Span([
                                     html.Span(id="mobile-zone", className="mx-3"),
                                 ]),
-                                dbc.Button(html.I(className="fa fa-arrow-right"), id="next-zone", color="primary", size="sm")
+                                dbc.Button(html.I(className="fa fa-arrow-right"), id="next-zone", color="primary",
+                                           size="sm")
                             ], style={"text-align": "center"})
                         ], width=12)
                     ], justify="around", className="d-block d-md-none")
@@ -687,7 +696,7 @@ def create_main_layout(gym):
                                 style={"position": "absolute",
                                        "width": "100%",
                                        "left": "0", "top": "0"})
-                        ], style={"position":"relative"}),
+                        ], style={"position": "relative"}),
                     ], className="px-0", width=12),
                 ], justify="between", className="px-0"),
             ], fluid=True, className="px-0")
