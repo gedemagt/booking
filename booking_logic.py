@@ -4,7 +4,7 @@ import humanize
 import numpy as np
 from flask_login import current_user
 
-from models import Booking, RepeatingBooking
+from models import Booking, GymBooking
 from time_utils import start_of_day, start_of_week, timeslot_index
 from utils import get_chosen_gym, is_admin, get_zone, is_instructor
 
@@ -92,8 +92,8 @@ def validate_booking(start, end, number, zone_id):
 def create_repeating_booking_map(start, days, zone_id):
     all_bookings = np.zeros(24 * 4 * days)
 
-    for b in RepeatingBooking.query\
-            .filter(RepeatingBooking.start <= start + timedelta(days=days + 1))\
+    for b in GymBooking.query\
+            .filter(GymBooking.start <= start + timedelta(days=days + 1))\
             .filter_by(zone_id=zone_id).all():
 
         if b.repeat_end and b.repeat_end < (start + timedelta(days=days + 1)):

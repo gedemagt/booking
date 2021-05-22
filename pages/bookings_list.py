@@ -11,13 +11,13 @@ from dash_extensions.snippets import get_triggered
 from flask_login import current_user
 
 from app import app
-from models import Booking, db, RepeatingBooking
+from models import Booking, db, GymBooking
 from utils import get_chosen_gym, is_admin, is_instructor
 
 
 BOOKING_TYPES = {
     Booking.__name__: Booking,
-    RepeatingBooking.__name__: RepeatingBooking
+    GymBooking.__name__: GymBooking
 }
 
 
@@ -26,7 +26,7 @@ REPEAT_DESCRIPTION = {
 }
 
 
-def create_single_booking(b: Union[Booking, RepeatingBooking]):
+def create_single_booking(b: Union[Booking, GymBooking]):
     result = []
     result.append(html.Div([
         dbc.Row([

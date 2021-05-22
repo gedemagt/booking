@@ -15,7 +15,7 @@ import config
 from app import app
 from booking_logic import validate_booking, create_weekly_booking_map
 from components import create_gym_info
-from models import Booking, db, RepeatingBooking
+from models import Booking, db, GymBooking
 from pages.bookings_list import my_bookings_list
 from time_utils import start_of_week, start_of_day, timeslot_index, parse, as_date
 from utils import get_chosen_gym, is_admin, get_zone, is_instructor
@@ -70,8 +70,8 @@ def on_booking(data, nr_bookings, view_data, repeat):
 
             if repeat and (is_instructor() or is_admin()):
                 db.session.add(
-                    RepeatingBooking(start=b_start, end=b_end, zone=get_zone(view_data["zone"]), number=nr_bookings,
-                                     repeat=repeat))
+                    GymBooking(start=b_start, end=b_end, zone=get_zone(view_data["zone"]), number=nr_bookings,
+                               repeat=repeat))
                 db.session.commit()
             else:
                 validate_booking(b_start, b_end, nr_bookings, view_data["zone"])

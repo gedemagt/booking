@@ -57,8 +57,8 @@ class Booking(db.Model):
     zone_id = db.Column(db.Integer(), db.ForeignKey('zones.id'), nullable=False)
 
 
-class RepeatingBooking(db.Model):
-    __tablename__ = 'repeating_bookings'
+class GymBooking(db.Model):
+    __tablename__ = 'gym_bookings'
     id = db.Column(db.Integer, primary_key=True)
     number = db.Column(db.Integer, default=1)
     start = db.Column(db.DateTime, nullable=False)
