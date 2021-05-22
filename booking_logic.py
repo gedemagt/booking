@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import humanize
 import numpy as np
 from flask_login import current_user
+from sqlalchemy import or_
 
 from models import Booking, GymBooking
 from time_utils import start_of_day, start_of_week, timeslot_index
@@ -93,11 +94,9 @@ def create_repeating_booking_map(start, days, zone_id):
     all_bookings = np.zeros(24 * 4 * days)
 
     for b in GymBooking.query\
-            .filter(GymBooking.start <= start + timedelta(days=days + 1))\
+            .filter(GymBooking.start < (start + timedelta(days=days)))\
+            .filter(or_(GymBooking.repeat_end == None, GymBooking.repeat_end >= start))\
             .filter_by(zone_id=zone_id).all():
-
-        if b.repeat_end and b.repeat_end < (start + timedelta(days=days + 1)):
-            continue
 
         if b.repeat == "w":
 
