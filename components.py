@@ -44,7 +44,7 @@ def create_gym_info(gym):
             html.Tr([
                 html.Td("Booking horizon", className="pr-3 font-weight-bold"),
                 html.Td(humanize.naturaldelta(timedelta(days=gym.max_days_ahead)))
-            ]) if gym.max_number_per_booking else None,
+            ]) if gym.max_days_ahead else None,
             html.Tr([
                 html.Td(f"* A booking counts as active until {humanize.naturaldelta(timedelta(minutes=15*gym.book_before))} before it ends", className="pr-3", colSpan=2),
             ]) if gym.book_before else None
