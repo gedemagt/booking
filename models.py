@@ -115,7 +115,7 @@ class Zone(db.Model):
     max_people = db.Column(db.Integer)
 
     bookings = db.relationship('Booking', backref=db.backref('zone', lazy=True))
-    repeating_bookings = db.relationship('RepeatingBooking', backref=db.backref('zone', lazy=True))
+    repeating_bookings = db.relationship('GymBooking', backref=db.backref('zone', lazy=True))
 
 
 def init_db(fapp, user_manager):
