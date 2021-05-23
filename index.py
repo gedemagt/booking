@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta
-
 from flask_login import current_user
 
 from app import app, fapp
@@ -67,10 +65,10 @@ def path(p):
         elif p and p.endswith("superadmin") and current_user.role == "ADMIN":
             layout = create_admin_layout()
         else:
-            if datetime.now() < datetime(2021, 1, 3) - timedelta(days=get_chosen_gym().max_days_ahead + 1):
-                layout = dbc.Container(dbc.Row(html.Img(src="assets/3u624n.jpg", style={"max-width": "100%"}), justify="around", className="pt-3"))
-            else:
-                layout = create_main_layout(get_chosen_gym())
+            # if datetime.now() < datetime(2021, 1, 3) - timedelta(days=get_chosen_gym().max_days_ahead + 1):
+            #     layout = dbc.Container(dbc.Row(html.Img(src="assets/3u624n.jpg", style={"max-width": "100%"}), justify="around", className="pt-3"))
+            # else:
+            layout = create_main_layout(get_chosen_gym())
 
         txt = f"{get_chosen_gym().name}"
     return layout, navbar_items, txt

@@ -251,7 +251,7 @@ def create_bookings():
 )
 def toggle_modal2(bid, note):
     if isinstance(get_triggered().id, dict) and get_triggered().n_clicks is not None:
-        # print(get_triggered().__dict__)
+
         new_bid = int(get_triggered().id["bookingid"])
         b = Booking.query.filter_by(id=new_bid).first()
         return True, new_bid, b.note
@@ -335,16 +335,29 @@ def val_booking(data, nr, view_data):
 
 
 @app.callback(
+    Output("to-drop-down", "options"),
+    Input("from-drop-down", "value")
+)
+def update_options(f):
+    if f is not None:
+        return OPTIONS[f + 1:f + 1 + get_chosen_gym().max_booking_length]
+    else:
+        return OPTIONS
+
+
+@app.callback(
     [Output("to-drop-down", "value")],
-    [Input('main-graph', 'clickData'), Trigger("book", "n_clicks")],
+    [Input('main-graph', 'clickData'), Input("from-drop-down", "value"), Trigger("book", "n_clicks")],
     [State("selection_store", "data")]
 )
-def on_chosen_from(click, data):
+def on_chosen_from(click, from_value, data):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
 
     if trig.id == "book":
+        return None
+    elif trig.id == "from-drop-down" and from_value is None:
         return None
     elif click:
         picked_date = parse_heatmap_click(click)
@@ -362,7 +375,7 @@ def on_chosen_from(click, data):
 
 
 @app.callback(
-    [Output("from-drop-down", "value"), Output("to-drop-down", "options")],
+    [Output("from-drop-down", "value")],
     [Input('main-graph', 'clickData'), Trigger("book", "n_clicks")],
     [State("selection_store", "data")]
 )
@@ -377,10 +390,8 @@ def on_chosen_from(click, data):
         picked_date = parse_heatmap_click(click)
         if data["f"] is not None and data["t"] is not None \
                 or data["f"] is None:
-            idx = timeslot_index(picked_date)
-            options = OPTIONS[idx+1:-1]
 
-            return idx, options
+            return timeslot_index(picked_date)
 
     raise PreventUpdate
 
@@ -430,7 +441,7 @@ def on_chosen_from(prev_from, prev_to, date_picker_date, data):
 
 @app.callback(
     [Output("prev-zone", "disabled"), Output("next-zone", "disabled"),
-     Output("mobile-zone", "children"), Output("zone-picker", "value")],
+     Output("mobile-zone", "children")],
     [Input("view_store", "data")]
 )
 def update_zone(data):
@@ -439,7 +450,24 @@ def update_zone(data):
         name = zone.name[:10] + "..."
     else:
         name = zone.name
-    return zone.gym.zones[0].id == zone.id, zone.gym.zones[-1].id == zone.id, name, zone.id
+    return zone.gym.zones[0].id == zone.id, zone.gym.zones[-1].id == zone.id, name
+
+
+@app.callback(
+    Output("zone-picker", "value"),
+    [Trigger("next-zone", "n_clicks"), Trigger("prev-zone", "n_clicks")],
+    [State("zone-picker", "options"), State("zone-picker", "value")]
+)
+def update_zone_picker(zone_picker_options, zone_picker_value):
+    values = [x["value"] for x in zone_picker_options]
+    idx = values.index(zone_picker_value)
+    trig = get_triggered()
+
+    if trig.id == "next-zone" and idx < len(values) - 1:
+        return values[idx+1]
+    elif trig.id == "prev-zone" and idx > 0:
+        return values[idx-1]
+    raise PreventUpdate
 
 
 @app.callback(
@@ -448,25 +476,14 @@ def update_zone(data):
      Trigger("show-8-16", "n_clicks"), Trigger("show-15-23", "n_clicks"),
      Trigger("show-am-2", "n_clicks"), Trigger("show-pm-2", "n_clicks"),
      Trigger("show-8-16-2", "n_clicks"), Trigger("show-15-23-2", "n_clicks"),
-     Trigger("zone-picker", "value"), Trigger("next-zone", "n_clicks"), Trigger("prev-zone", "n_clicks"), Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks")],
+     Trigger("zone-picker", "value"), Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks")],
     [State("view_store", "data")]
 )
 def show_selection(data):
     trig = get_triggered()
 
-    zone = get_zone(data["zone"])
-    # Find current zone index:
-    current_idx = 0
-    for idx, zone in enumerate(zone.gym.zones):
-        if zone.id == data["zone"]:
-            current_idx = idx
-
     if trig.id == "zone-picker":
         data["zone"] = trig.value
-    elif trig.id == "next-zone" and current_idx < len(zone.gym.zones) - 1:
-        data["zone"] = zone.gym.zones[current_idx + 1].id
-    elif trig.id == "prev-zone" and current_idx > 0:
-        data["zone"] = zone.gym.zones[current_idx - 1].id
     else:
         if trig.n_clicks is None:
             raise PreventUpdate
@@ -651,7 +668,7 @@ def create_main_layout(gym):
                                         dbc.Col([
                                             dcc.Dropdown(
                                                 id="from-drop-down",
-                                                value=4 * 8,
+                                                # value=4 * 8,
                                                 options=OPTIONS[:-1],
                                                 searchable=False,
                                             )
