@@ -335,106 +335,97 @@ def val_booking(data, nr, view_data):
 
 
 @app.callback(
-    [Output("selection_store", "data")],
-    [Input("from-drop-down", "value"), Input("to-drop-down", "value"),
-     Input('main-graph', 'clickData'), Input("date-picker", "date")],
-    [State("selection_store", "data")], group="ok"
+    [Output("to-drop-down", "value")],
+    [Input('main-graph', 'clickData'), Trigger("book", "n_clicks")],
+    [State("selection_store", "data")]
 )
-def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
+def on_chosen_from(click, data):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
 
-    if trig.id == "main-graph" and click:
+    if trig.id == "book":
+        return None
+    elif click:
         picked_date = parse_heatmap_click(click)
-        if data["f"] is not None and data["t"] is not None \
-                or data["f"] is None:
-            data["f"] = picked_date
-            data["t"] = None
-        elif data["t"] is None:
-            f = parse(data["f"])
-            data["f"] = min(f, picked_date)
-            data["t"] = max(f, picked_date)
+        if data["f"] is not None and data["t"] is None:
 
             max_dt = timedelta(minutes=15 * get_max_booking_length())
-            if data["t"] - data["f"] > max_dt:
-                data["t"] = data["f"] + max_dt
+            if picked_date - parse(data["f"]) > max_dt:
+                picked_date = parse(data["f"]) + max_dt
 
-        data["source"] = "graph"
-    else:
-        picked_date = datetime.strptime(date_picker_date, "%Y-%m-%d")
-        d = start_of_week(picked_date)
+            return timeslot_index(picked_date)
+        elif data["f"] is not None and data["t"] is not None:
+            return None
 
-        if trig.id == "from-drop-down":
-            if prev_from is None:
-                data["f"] = None
-                data["t"] = None
-            else:
-                data["f"] = date_picker_date + "T" + OPTIONS[prev_from]["label"] + ":00"
-        elif trig.id == "to-drop-down":
-            if prev_to is None:
-                data["t"] = None
-            else:
-                data["t"] = date_picker_date + "T" + OPTIONS[prev_to]["label"] + ":00"
-        elif trig.id == "date-picker":
-            if data["t"] is not None:
-                data["t"] = str(date_picker_date) + "T" + data["t"].split("T")[-1]
-            if data["f"] is not None:
-                data["f"] = str(date_picker_date) + "T" + data["f"].split("T")[-1]
-        data["source"] = "input"
-        data["d"] = d
-    return data
+    raise PreventUpdate
 
 
 @app.callback(
-    [Output("from-drop-down", "options"), Output("from-drop-down", "value"), Output("to-drop-down", "options"),
-     Output("to-drop-down", "value"), Output("date-picker", "date")],
-    [Input("selection_store", "data")],
-    [State("from-drop-down", "value"), State("to-drop-down", "value"),
-     State("date-picker", "date")]
+    [Output("from-drop-down", "value"), Output("to-drop-down", "options")],
+    [Input('main-graph', 'clickData'), Trigger("book", "n_clicks")],
+    [State("selection_store", "data")]
 )
-def update_inputs(data, prev_from, prev_to, prev_date):
+def on_chosen_from(click, data):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
 
-    from_value = None
-    to_value = None
+    if trig.id == "book":
+        return None
+    elif click:
+        picked_date = parse_heatmap_click(click)
+        if data["f"] is not None and data["t"] is not None \
+                or data["f"] is None:
+            idx = timeslot_index(picked_date)
+            options = OPTIONS[idx+1:-1]
 
-    day = prev_date
+            return idx, options
 
-    if data.get("source", "") == "graph":
-        day = start_of_day(datetime.now())
-        if data["f"] is not None:
-            d = parse(data["f"])
-            day = start_of_day(d)
-            from_value = timeslot_index(d)
+    raise PreventUpdate
+
+
+@app.callback(
+    [Output("date-picker", "date")],
+    [Input('main-graph', 'clickData')]
+)
+def on_chosen_from(click):
+    trig = get_triggered()
+    if trig.id is None:
+        raise PreventUpdate
+
+    if click:
+        picked_date = parse_heatmap_click(click)
+        return picked_date.date()
+
+    raise PreventUpdate
+
+
+@app.callback(
+    [Output("selection_store", "data")],
+    [Input("from-drop-down", "value"), Input("to-drop-down", "value"), Input("date-picker", "date")],
+    [State("selection_store", "data")], group="ok"
+)
+def on_chosen_from(prev_from, prev_to, date_picker_date, data):
+    trig = get_triggered()
+    if trig.id is None:
+        raise PreventUpdate
+
+    picked_date = datetime.strptime(date_picker_date, "%Y-%m-%d")
+    d = start_of_week(picked_date)
+
+    data["f"] = date_picker_date + "T" + OPTIONS[prev_from]["label"] + ":00" if prev_from else None
+    data["t"] = date_picker_date + "T" + OPTIONS[prev_to]["label"] + ":00" if prev_to else None
+
+    if trig.id == "date-picker":
         if data["t"] is not None:
-            d = parse(data["t"])
-            to_value = timeslot_index(d)
-        day = day.date()
-    elif data.get("source", "") == "input":
+            data["t"] = str(date_picker_date) + "T" + data["t"].split("T")[-1]
+        if data["f"] is not None:
+            data["f"] = str(date_picker_date) + "T" + data["f"].split("T")[-1]
 
-        from_value = prev_from if data["f"] is not None else None
-        to_value = prev_to if data["t"] is not None else None
+    data["d"] = d
 
-    from_min_index = timeslot_index(datetime.now()) if as_date(day) == datetime.now().date() else 0
-    from_max_index = len(OPTIONS) - 1
-
-    if from_value is not None:
-        to_min_index = from_value + 1
-        to_max_index = from_value + 1 + get_max_booking_length() if not (is_admin() or is_instructor()) else len(OPTIONS) - 1
-    else:
-        to_min_index = from_min_index + 1
-        to_max_index = len(OPTIONS) - 1
-
-    if from_value is not None:
-        from_value = from_value
-
-    if to_value is not None:
-        to_value = to_value
-
-    return OPTIONS[from_min_index:from_max_index], from_value, OPTIONS[to_min_index:to_max_index], to_value, day
+    return data
 
 
 @app.callback(
