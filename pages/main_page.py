@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime, timedelta, date
 
 import dash_core_components as dcc
@@ -210,112 +211,113 @@ def val_booking(data, nr, view_data):
 
 
 @app.callback(
-    [Output("selection_store", "data")],
-    [Input("from-drop-down", "value"), Input("to-drop-down", "value"),
-     Input('main-graph', 'clickData'), Input("date-picker", "date")],
-    [State("selection_store", "data")], group="ok"
+    Output("to-drop-down", "options"),
+    Input("from-drop-down", "value")
 )
-def on_chosen_from(prev_from, prev_to, click, date_picker_date, data):
+def update_options(f):
+    if f is not None:
+        return OPTIONS[f + 1:f + 1 + get_chosen_gym().max_booking_length]
+    else:
+        return OPTIONS
+
+
+@app.callback(
+    [Output("to-drop-down", "value")],
+    [Input('main-graph', 'clickData'), Input("from-drop-down", "value"), Trigger("book", "n_clicks")],
+    [State("selection_store", "data")]
+)
+def on_chosen_from(click, from_value, data):
     trig = get_triggered()
     if trig.id is None:
         raise PreventUpdate
 
-    if trig.id == "main-graph" and click:
+    if trig.id == "book":
+        return None
+    elif trig.id == "from-drop-down" and from_value is None:
+        return None
+    elif click:
+        picked_date = parse_heatmap_click(click)
+        if data["f"] is not None and data["t"] is None:
+
+            max_dt = timedelta(minutes=15 * get_max_booking_length())
+            if picked_date - parse(data["f"]) > max_dt:
+                picked_date = parse(data["f"]) + max_dt
+
+            return timeslot_index(picked_date)
+        elif data["f"] is not None and data["t"] is not None:
+            return None
+
+    raise PreventUpdate
+
+
+@app.callback(
+    [Output("from-drop-down", "value")],
+    [Input('main-graph', 'clickData'), Trigger("book", "n_clicks")],
+    [State("selection_store", "data")]
+)
+def on_chosen_from(click, data):
+    trig = get_triggered()
+    if trig.id is None:
+        raise PreventUpdate
+
+    if trig.id == "book":
+        return None
+    elif click:
         picked_date = parse_heatmap_click(click)
         if data["f"] is not None and data["t"] is not None \
                 or data["f"] is None:
-            data["f"] = picked_date
-            data["t"] = None
-        elif data["t"] is None:
-            f = parse(data["f"])
-            data["f"] = min(f, picked_date)
-            data["t"] = max(f, picked_date)
 
-            max_dt = timedelta(minutes=15 * get_max_booking_length())
-            if data["t"] - data["f"] > max_dt:
-                data["t"] = data["f"] + max_dt
+            return timeslot_index(picked_date)
 
-        data["source"] = "graph"
-    else:
-        picked_date = datetime.strptime(date_picker_date, "%Y-%m-%d")
-        d = start_of_week(picked_date)
+    raise PreventUpdate
 
-        if trig.id == "from-drop-down":
-            if prev_from is None:
-                data["f"] = None
-                data["t"] = None
-            else:
-                data["f"] = date_picker_date + "T" + OPTIONS[prev_from]["label"] + ":00"
-        elif trig.id == "to-drop-down":
-            if prev_to is None:
-                data["t"] = None
-            else:
-                data["t"] = date_picker_date + "T" + OPTIONS[prev_to]["label"] + ":00"
-        elif trig.id == "date-picker":
-            if data["t"] is not None:
-                data["t"] = str(date_picker_date) + "T" + data["t"].split("T")[-1]
-            if data["f"] is not None:
-                data["f"] = str(date_picker_date) + "T" + data["f"].split("T")[-1]
-        data["source"] = "input"
-        data["d"] = d
+
+@app.callback(
+    [Output("date-picker", "date")],
+    [Input('main-graph', 'clickData')]
+)
+def on_chosen_from(click):
+    trig = get_triggered()
+    if trig.id is None:
+        raise PreventUpdate
+
+    if click:
+        picked_date = parse_heatmap_click(click)
+        return picked_date.date()
+
+    raise PreventUpdate
+
+
+@app.callback(
+    [Output("selection_store", "data")],
+    [Input("from-drop-down", "value"), Input("to-drop-down", "value"), Input("date-picker", "date")],
+    [State("selection_store", "data")], group="ok"
+)
+def on_chosen_from(prev_from, prev_to, date_picker_date, data):
+    trig = get_triggered()
+    if trig.id is None:
+        raise PreventUpdate
+
+    picked_date = datetime.strptime(date_picker_date, "%Y-%m-%d")
+    d = start_of_week(picked_date)
+
+    data["f"] = date_picker_date + "T" + OPTIONS[prev_from]["label"] + ":00" if prev_from else None
+    data["t"] = date_picker_date + "T" + OPTIONS[prev_to]["label"] + ":00" if prev_to else None
+
+    if trig.id == "date-picker":
+        if data["t"] is not None:
+            data["t"] = str(date_picker_date) + "T" + data["t"].split("T")[-1]
+        if data["f"] is not None:
+            data["f"] = str(date_picker_date) + "T" + data["f"].split("T")[-1]
+
+    data["d"] = d
+
     return data
 
 
 @app.callback(
-    [Output("from-drop-down", "options"), Output("from-drop-down", "value"), Output("to-drop-down", "options"),
-     Output("to-drop-down", "value"), Output("date-picker", "date")],
-    [Input("selection_store", "data")],
-    [State("from-drop-down", "value"), State("to-drop-down", "value"),
-     State("date-picker", "date")]
-)
-def update_inputs(data, prev_from, prev_to, prev_date):
-    trig = get_triggered()
-    if trig.id is None:
-        raise PreventUpdate
-
-    from_value = None
-    to_value = None
-
-    day = prev_date
-
-    if data.get("source", "") == "graph":
-        day = start_of_day(datetime.now())
-        if data["f"] is not None:
-            d = parse(data["f"])
-            day = start_of_day(d)
-            from_value = timeslot_index(d)
-        if data["t"] is not None:
-            d = parse(data["t"])
-            to_value = timeslot_index(d)
-        day = day.date()
-    elif data.get("source", "") == "input":
-
-        from_value = prev_from if data["f"] is not None else None
-        to_value = prev_to if data["t"] is not None else None
-
-    from_min_index = timeslot_index(datetime.now()) if as_date(day) == datetime.now().date() else 0
-    from_max_index = len(OPTIONS) - 1
-
-    if from_value is not None:
-        to_min_index = from_value + 1
-        to_max_index = from_value + 1 + get_max_booking_length() if not (is_admin() or is_instructor()) else len(
-            OPTIONS) - 1
-    else:
-        to_min_index = from_min_index + 1
-        to_max_index = len(OPTIONS) - 1
-
-    if from_value is not None:
-        from_value = from_value
-
-    if to_value is not None:
-        to_value = to_value
-
-    return OPTIONS[from_min_index:from_max_index], from_value, OPTIONS[to_min_index:to_max_index], to_value, day
-
-
-@app.callback(
     [Output("prev-zone", "disabled"), Output("next-zone", "disabled"),
-     Output("mobile-zone", "children"), Output("zone-picker", "value")],
+     Output("mobile-zone", "children")],
     [Input("view_store", "data")]
 )
 def update_zone(data):
@@ -324,7 +326,24 @@ def update_zone(data):
         name = zone.name[:10] + "..."
     else:
         name = zone.name
-    return zone.gym.zones[0].id == zone.id, zone.gym.zones[-1].id == zone.id, name, zone.id
+    return zone.gym.zones[0].id == zone.id, zone.gym.zones[-1].id == zone.id, name
+
+
+@app.callback(
+    Output("zone-picker", "value"),
+    [Trigger("next-zone", "n_clicks"), Trigger("prev-zone", "n_clicks")],
+    [State("zone-picker", "options"), State("zone-picker", "value")]
+)
+def update_zone_picker(zone_picker_options, zone_picker_value):
+    values = [x["value"] for x in zone_picker_options]
+    idx = values.index(zone_picker_value)
+    trig = get_triggered()
+
+    if trig.id == "next-zone" and idx < len(values) - 1:
+        return values[idx+1]
+    elif trig.id == "prev-zone" and idx > 0:
+        return values[idx-1]
+    raise PreventUpdate
 
 
 @app.callback(
@@ -333,26 +352,14 @@ def update_zone(data):
      Trigger("show-8-16", "n_clicks"), Trigger("show-15-23", "n_clicks"),
      Trigger("show-am-2", "n_clicks"), Trigger("show-pm-2", "n_clicks"),
      Trigger("show-8-16-2", "n_clicks"), Trigger("show-15-23-2", "n_clicks"),
-     Trigger("zone-picker", "value"), Trigger("next-zone", "n_clicks"), Trigger("prev-zone", "n_clicks"),
-     Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks")],
+     Trigger("zone-picker", "value"), Trigger("show-text", "n_clicks"), Trigger("show-text-2", "n_clicks")],
     [State("view_store", "data")]
 )
 def show_selection(data):
     trig = get_triggered()
 
-    zone = get_zone(data["zone"])
-    # Find current zone index:
-    current_idx = 0
-    for idx, zone in enumerate(zone.gym.zones):
-        if zone.id == data["zone"]:
-            current_idx = idx
-
     if trig.id == "zone-picker":
         data["zone"] = trig.value
-    elif trig.id == "next-zone" and current_idx < len(zone.gym.zones) - 1:
-        data["zone"] = zone.gym.zones[current_idx + 1].id
-    elif trig.id == "prev-zone" and current_idx > 0:
-        data["zone"] = zone.gym.zones[current_idx - 1].id
     else:
         if trig.n_clicks is None:
             raise PreventUpdate
@@ -539,7 +546,7 @@ def create_main_layout(gym):
                                         dbc.Col([
                                             dcc.Dropdown(
                                                 id="from-drop-down",
-                                                value=4 * 8,
+                                                # value=4 * 8,
                                                 options=OPTIONS[:-1],
                                                 searchable=False,
                                             )
